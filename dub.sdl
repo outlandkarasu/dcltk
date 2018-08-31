@@ -3,3 +3,5 @@ description "OpenCL toolkit library for D"
 authors "outland.karasu@gmail.com"
 copyright "Copyright © 2018, outland.karasu@gmail.com"
 license "BSL-1.0"
+dependency "derelict-cl" version="~>3.2.0"
+
