@@ -2,7 +2,7 @@
 *.o
 *.obj
 *.swp
-dcltk
+/dcltk
 
 # Compiled Dynamic libraries
 *.so
