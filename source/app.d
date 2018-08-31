@@ -1,6 +1,8 @@
 import std.stdio;
 
-void main()
-{
-	writeln("Edit source/app.d to start your project.");
+import cl = dcltk;
+
+void main() {
+    cl.loadOpenCl();
 }
+
