@@ -3,6 +3,7 @@ module dcltk;
 import derelict.opencl.cl;
 
 import std.conv : to;
+import std.exception : assumeUnique;
 
 /**
  *  OpenCL exception.
@@ -49,8 +50,6 @@ T enforceCl(T)(T result, string file = __FILE__, size_t line = __LINE__) @safe i
  */
 void loadOpenCl() {
     DerelictCL.load();
-    foreach(platformId; getPlatformIds()) {
-    }
     //DerelictCL.reload();
     //DerelictCL.loadEXT();
 }
@@ -68,6 +67,49 @@ cl_platform_id[] getPlatformIds() {
     auto result = new cl_platform_id[count];
     enforceCl(clGetPlatformIDs(count, result.ptr, &count));
     return result[0 .. count];
+}
+
+/**
+ *  get platform information.
+ *
+ *  Params:
+ *      platformId = platform ID.
+ *      name = information name.
+ *  Returns:
+ *      platform inforamtion.
+ */
+string getPlatformInfo(cl_platform_id platformId, cl_platform_info name) {
+    size_t size = 0;
+    enforceCl(clGetPlatformInfo(platformId, name, 0, null, &size));
+
+    auto result = new char[size];
+    enforceCl(clGetPlatformInfo(platformId, name, size, result.ptr, &size));
+    return assumeUnique(result[0 .. size]);
+}
+
+/// get platform profile
+string getPlatformProfile(cl_platform_id platformId) {
+    return getPlatformInfo(platformId, CL_PLATFORM_PROFILE);
+}
+
+/// get platform version
+string getPlatformVersion(cl_platform_id platformId) {
+    return getPlatformInfo(platformId, CL_PLATFORM_VERSION);
+}
+
+/// get platform name
+string getPlatformName(cl_platform_id platformId) {
+    return getPlatformInfo(platformId, CL_PLATFORM_NAME);
+}
+
+/// get platform vendor
+string getPlatformVendor(cl_platform_id platformId) {
+    return getPlatformInfo(platformId, CL_PLATFORM_VENDOR);
+}
+
+/// get platform extensions
+string getPlatformExtensions(cl_platform_id platformId) {
+    return getPlatformInfo(platformId, CL_PLATFORM_EXTENSIONS);
 }
 
 /**
