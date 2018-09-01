@@ -80,3 +80,58 @@ cl_mem createReadBuffer(cl_context context, const(void)[] data) {
 void releaseBuffer(cl_mem buffer) {
     enforceCl(clReleaseMemObject(buffer));
 }
+
+/**
+ *  enqueue read buffer.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      offset = read offset.
+ *      dest = dest memory.
+ *      event = enqueue event.
+ */
+void enqueueReadBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, void[] dest, out cl_event event) {
+    enforceCl(clEnqueueReadBuffer(queue, buffer, false, offset, dest.length, dest.ptr, 0, null, &event));
+}
+
+/**
+ *  enqueue read buffer.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      offset = read offset.
+ *      dest = dest memory.
+ */
+void enqueueReadBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, void[] dest) {
+    enforceCl(clEnqueueReadBuffer(queue, buffer, false, offset, dest.length, dest.ptr, 0, null, null));
+}
+
+/**
+ *  enqueue write buffer.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      offset = write offset.
+ *      source = source memory.
+ *      event = enqueue event.
+ */
+void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, const(void)[] source, out cl_event event) {
+    enforceCl(clEnqueueWriteBuffer(queue, buffer, false, offset, source.length, source.ptr, 0, null, &event));
+}
+
+/**
+ *  enqueue source buffer.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      offset = read offset.
+ *      source = source memory.
+ */
+void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, void[] source) {
+    enforceCl(clEnqueueWriteBuffer(queue, buffer, false, offset, source.length, source.ptr, 0, null, null));
+}
+
