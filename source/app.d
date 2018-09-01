@@ -28,5 +28,9 @@ void main() {
     }
     auto context = cl.createDefaultContext(platformId);
     scope(exit) cl.releaseContext(context);
+
+    auto device = deviceIds[0];
+    auto commandQueue = cl.createOutOfOrderCommandQueue(context, device);
+    scope(exit) cl.releaseCommandQueue(commandQueue);
 }
 
