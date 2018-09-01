@@ -4,6 +4,8 @@ import derelict.opencl.cl;
 
 import dcltk.error : enforceCl;
 
+import std.exception : assumeUnique;
+
 /**
  *  get devices.
  *
@@ -60,10 +62,45 @@ T getDeviceInfo(T)(cl_device_id deviceId, cl_device_info name) {
  */
 T[] getDeviceInfo(T : T[])(cl_device_id deviceId, cl_device_info name) {
     size_t size = 0;
-    enforceCl(clGetDeviceInfo(deviceId, name, 0, null, size));
+    enforceCl(clGetDeviceInfo(deviceId, name, 0, null, &size));
 
     auto result = new T[(size + T.sizeof - 1) / T.sizeof];
-    enforceCl(clGetDeviceInfo(deviceId, name, size, &result, &size));
+    enforceCl(clGetDeviceInfo(deviceId, name, size, result.ptr, &size));
     return result[0 .. size / T.sizeof];
+}
+
+/// get device global memory size.
+cl_ulong getDeviceGlobalMemorySize(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_ulong)(deviceId, CL_DEVICE_GLOBAL_MEM_SIZE);
+}
+
+/// get device local memory size.
+cl_ulong getDeviceLocalMemorySize(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_ulong)(deviceId, CL_DEVICE_LOCAL_MEM_SIZE);
+}
+
+/// get device max compute units.
+cl_uint getDeviceMaxComputeUnits(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_uint)(deviceId, CL_DEVICE_MAX_COMPUTE_UNITS);
+}
+
+/// get device max work group size.
+size_t getDeviceMaxWorkGroupSize(cl_device_id deviceId) {
+    return getDeviceInfo!(size_t)(deviceId, CL_DEVICE_MAX_WORK_GROUP_SIZE);
+}
+
+/// get device max work item dimensions.
+cl_uint getDeviceMaxWorkItemDimensions(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_uint)(deviceId, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS);
+}
+
+/// get device max work item sizes.
+immutable(size_t)[] getDeviceMaxWorkItemSizes(cl_device_id deviceId) {
+    return assumeUnique(getDeviceInfo!(size_t[])(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES));
+}
+
+/// get device name.
+string getDeviceName(cl_device_id deviceId) {
+    return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_NAME));
 }
 

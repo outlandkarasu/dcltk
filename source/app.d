@@ -11,5 +11,19 @@ void main() {
         cl.getPlatformCLVersion(platformId),
         cl.getPlatformVendor(platformId),
         cl.getPlatformExtensions(platformId));
+
+    auto deviceIds = cl.getAllDeviceIds(platformId);
+    writefln("devices:");
+    foreach(i, d; deviceIds) {
+        writefln("%d: %s gmem: %d, lmem: %d, cu: %d, w: %d, dim: %d %s",
+                i,
+                cl.getDeviceName(d),
+                cl.getDeviceGlobalMemorySize(d),
+                cl.getDeviceLocalMemorySize(d),
+                cl.getDeviceMaxComputeUnits(d),
+                cl.getDeviceMaxWorkGroupSize(d),
+                cl.getDeviceMaxWorkItemDimensions(d),
+                cl.getDeviceMaxWorkItemSizes(d));
+    }
 }
 
