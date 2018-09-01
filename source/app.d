@@ -30,7 +30,15 @@ void main() {
     scope(exit) cl.releaseContext(context);
 
     auto device = deviceIds[0];
-    auto commandQueue = cl.createOutOfOrderCommandQueue(context, device);
+    auto commandQueue = cl.createCommandQueue(context, device);
     scope(exit) cl.releaseCommandQueue(commandQueue);
+
+    auto data = [100.0f];
+    auto buffer = cl.createBuffer(context, data);
+    scope(exit) cl.releaseBuffer(buffer);
+    auto writeBuffer = cl.createWriteBuffer(context, 100);
+    scope(exit) cl.releaseBuffer(writeBuffer);
+    auto readBuffer = cl.createReadBuffer(context, data);
+    scope(exit) cl.releaseBuffer(readBuffer);
 }
 
