@@ -26,5 +26,7 @@ void main() {
                 cl.getDeviceMaxWorkItemDimensions(d),
                 cl.getDeviceMaxWorkItemSizes(d));
     }
+    auto context = cl.createContext(platformId, deviceIds);
+    scope(exit) cl.releaseContext(context);
 }
 
