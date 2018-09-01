@@ -1,6 +1,7 @@
 import std.stdio : writefln;
 
 import cl = dcltk;
+import derelict.opencl.cl : cl_event;
 
 void main() {
     auto platformId = cl.loadOpenCl();
@@ -40,5 +41,18 @@ void main() {
     scope(exit) cl.releaseBuffer(writeBuffer);
     auto readBuffer = cl.createReadBuffer(context, data);
     scope(exit) cl.releaseBuffer(readBuffer);
+
+    cl.enqueueWriteBuffer(commandQueue, buffer, 0, [200.0f]);
+
+    cl_event event;
+    cl.enqueueReadBuffer(commandQueue, buffer, 0, data, event);
+    cl.waitAndReleaseEvents(event);
+    assert(data[0] == 200.0f);
+
+    cl.enqueueWriteBuffer(commandQueue, buffer, 0, [300.0f], event);
+    cl.waitAndReleaseEvents(event);
+    cl.enqueueReadBuffer(commandQueue, buffer, 0, data, event);
+    cl.waitAndReleaseEvents(event);
+    assert(data[0] == 300.0f);
 }
 

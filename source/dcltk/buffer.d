@@ -4,8 +4,6 @@ import derelict.opencl.cl;
 
 import dcltk.error : enforceCl;
 
-import std.stdio : writefln;
-
 /**
  *  create buffer object.
  *
@@ -131,7 +129,7 @@ void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, co
  *      offset = read offset.
  *      source = source memory.
  */
-void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, void[] source) {
+void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, const(void)[] source) {
     enforceCl(clEnqueueWriteBuffer(queue, buffer, false, offset, source.length, source.ptr, 0, null, null));
 }
 
