@@ -73,7 +73,6 @@ T[] getDeviceInfo(T : T[])(cl_device_id deviceId, cl_device_info name) {
 cl_ulong getDeviceGlobalMemorySize(cl_device_id deviceId) {
     return getDeviceInfo!(cl_ulong)(deviceId, CL_DEVICE_GLOBAL_MEM_SIZE);
 }
-
 /// get device local memory size.
 cl_ulong getDeviceLocalMemorySize(cl_device_id deviceId) {
     return getDeviceInfo!(cl_ulong)(deviceId, CL_DEVICE_LOCAL_MEM_SIZE);
@@ -102,5 +101,10 @@ immutable(size_t)[] getDeviceMaxWorkItemSizes(cl_device_id deviceId) {
 /// get device name.
 string getDeviceName(cl_device_id deviceId) {
     return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_NAME));
+}
+
+/// get device version.
+string getDeviceVersion(cl_device_id deviceId) {
+    return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_OPENCL_C_VERSION));
 }
 

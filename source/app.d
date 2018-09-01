@@ -15,9 +15,10 @@ void main() {
     auto deviceIds = cl.getAllDeviceIds(platformId);
     writefln("devices:");
     foreach(i, d; deviceIds) {
-        writefln("%d: %s gmem: %d, lmem: %d, cu: %d, w: %d, dim: %d %s",
+        writefln("%d: %s %s gmem: %d, lmem: %d, cu: %d, w: %d, dim: %d %s",
                 i,
                 cl.getDeviceName(d),
+                cl.getDeviceVersion(d),
                 cl.getDeviceGlobalMemorySize(d),
                 cl.getDeviceLocalMemorySize(d),
                 cl.getDeviceMaxComputeUnits(d),
