@@ -69,5 +69,7 @@ void main() {
     cl.setKernelArg(kernel, 0, 100.0f);
     cl.enqueueKernel(commandQueue, kernel, [1], [1], event);
     cl.waitAndReleaseEvents(event);
+    cl.flushCommandQueue(commandQueue);
+    cl.finishCommandQueue(commandQueue);
 }
 

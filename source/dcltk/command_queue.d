@@ -122,3 +122,13 @@ void enqueueKernel(
     enqueueKernel(commandQueue, kernel, globalWorkSizes, localWorkSizes, &event);
 }
 
+/// flush command queue.
+void flushCommandQueue(cl_command_queue commandQueue) {
+    enforceCl(clFlush(commandQueue));
+}
+
+/// finish command queue.
+void finishCommandQueue(cl_command_queue commandQueue) {
+    enforceCl(clFinish(commandQueue));
+}
+
