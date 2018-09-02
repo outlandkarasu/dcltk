@@ -67,5 +67,7 @@ void main() {
     scope(exit) cl.releaseKernel(kernel);
 
     cl.setKernelArg(kernel, 0, 100.0f);
+    cl.enqueueKernel(commandQueue, kernel, [1], [1], event);
+    cl.waitAndReleaseEvents(event);
 }
 
