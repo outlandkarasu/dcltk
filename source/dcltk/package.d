@@ -7,4 +7,5 @@ public import dcltk.context;
 public import dcltk.device;
 public import dcltk.event;
 public import dcltk.platform;
+public import dcltk.program;
 public import dcltk.error;

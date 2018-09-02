@@ -54,5 +54,11 @@ void main() {
     cl.enqueueReadBuffer(commandQueue, buffer, 0, data, event);
     cl.waitAndReleaseEvents(event);
     assert(data[0] == 300.0f);
+
+    auto program = cl.createProgramFromSource(context, `
+        __kernel void k(void) {}
+    `);
+    scope(exit) cl.releaseProgram(program);
+    cl.buildProgram(program, deviceIds);
 }
 
