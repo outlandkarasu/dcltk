@@ -56,9 +56,16 @@ void main() {
     assert(data[0] == 300.0f);
 
     auto program = cl.createProgramFromSource(context, `
-        __kernel void k(void) {}
+        __kernel void k(float value) {
+            printf("value:%g\n", value);
+        }
     `);
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
+
+    auto kernel = cl.createKernel(program, "k");
+    scope(exit) cl.releaseKernel(kernel);
+
+    cl.setKernelArg(kernel, 0, 100.0f);
 }
 
