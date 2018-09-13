@@ -14,3 +14,8 @@ configuration "examples-hello-world" {
     mainSourceFile "examples/hello_world.d"
 }
 
+configuration "examples-product" {
+    targetType "executable"
+    mainSourceFile "examples/product.d"
+}
+

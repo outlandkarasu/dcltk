@@ -34,6 +34,11 @@ cl_device_id[] getGpuDeviceIds(cl_platform_id platformId) {
     return getDeviceIds(platformId, CL_DEVICE_TYPE_GPU);
 }
 
+/// get CPU devices.
+cl_device_id[] getCpuDeviceIds(cl_platform_id platformId) {
+    return getDeviceIds(platformId, CL_DEVICE_TYPE_CPU);
+}
+
 /**
  *  get device info.
  *
@@ -106,5 +111,15 @@ string getDeviceName(cl_device_id deviceId) {
 /// get device version.
 string getDeviceVersion(cl_device_id deviceId) {
     return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_OPENCL_C_VERSION));
+}
+
+/// get device type.
+cl_device_type getDeviceType(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_device_type)(deviceId, CL_DEVICE_TYPE);
+}
+
+/// is device GPU.
+bool isGpuDevice(cl_device_id deviceId) {
+    return getDeviceType(deviceId) == CL_DEVICE_TYPE_GPU;
 }
 

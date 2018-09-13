@@ -84,3 +84,50 @@ void releaseContext(cl_context context) {
     enforceCl(clReleaseContext(context));
 }
 
+/**
+ *  get context info.
+ *
+ *  Params:
+ *      T = information type.
+ *      context = context.
+ *      name = information name.
+ *  Returns:
+ *      context information.
+ */
+T getContextInfo(T)(cl_context context, cl_context_info name) {
+    T result;
+    enforceCl(clGetContextInfo(context, name, T.sizeof, &result, null));
+    return result;
+}
+
+/**
+ *  get context info array.
+ *
+ *  Params:
+ *      T = information type.
+ *      context = context.
+ *      name = information name.
+ *  Returns:
+ *      context information.
+ */
+T[] getContextInfo(T : T[])(cl_context context, cl_context_info name) {
+    size_t size = 0;
+    enforceCl(clGetContextInfo(context, name, 0, null, &size));
+
+    auto result = new T[(size + T.sizeof - 1) / T.sizeof];
+    enforceCl(clGetContextInfo(context, name, size, result.ptr, &size));
+    return result[0 .. size / T.sizeof];
+}
+
+/**
+ *  get context device ID array.
+ *
+ *  Params:
+ *      context = context.
+ *  Returns:
+ *      context device ID array.
+ */
+cl_device_id[] getContextDeviceIds(cl_context context) {
+    return getContextInfo!(cl_device_id[])(context, CL_CONTEXT_DEVICES);
+}
+
