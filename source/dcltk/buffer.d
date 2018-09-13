@@ -70,7 +70,7 @@ cl_mem createWriteBuffer(cl_context context, size_t size) {
 cl_mem createReadBuffer(cl_context context, const(void)[] data) {
     return createBuffer(
             context,
-            CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR,
+            CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_COPY_HOST_PTR,
             cast(void[]) data);
 }
 
