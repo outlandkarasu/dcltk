@@ -59,7 +59,7 @@ in {
         for(size_t j = 0; j < resultCols; ++j) {
             float value = 0.0f;
             for(size_t k = 0; k < cols; ++k) {
-                value += lhs[i * rows + k] * rhs[k * resultCols + j];
+                value += lhs[i * cols + k] * rhs[k * resultCols + j];
             }
             result[i * resultCols + j] = value;
         }
@@ -127,7 +127,7 @@ in {
                 for(size_t j = 0; j < resultCols; ++j) {
                     float value = 0.0f;
                     for(size_t k = 0; k < cols; ++k) {
-                        value += lhs[i * rows + k] * rhs[k * resultCols + j];
+                        value += lhs[i * cols + k] * rhs[k * resultCols + j];
                     }
                     result[i * resultCols + j] = value;
                 }
