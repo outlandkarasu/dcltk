@@ -6,42 +6,6 @@ import std.stdio : writefln;
 import cl = dcltk;
 import derelict.opencl.cl : cl_event;
 
-void main() {
-    // matrix size.
-    enum {
-        ROWS = 100,
-        COLS = 200,
-        RESULT_COLS = 300
-    }
-
-    // initialize operand matrixes.
-    auto lhs = new float[ROWS * COLS];
-    foreach(ref e; lhs) {
-        e = uniform01!float;
-    }
-    auto rhs = new float[COLS * RESULT_COLS];
-    foreach(ref e; rhs) {
-        e = uniform01!float;
-    }
-    auto cpuResult = new float[ROWS * RESULT_COLS];
-    auto gpuResult = new float[ROWS * RESULT_COLS];
-
-    // benchmark CPU and GPU.
-    immutable cpuMsecs = benchmark!(() => productCpu(
-                lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
-    immutable gpuMsecs = benchmark!(() => productGpu(
-                lhs, rhs, gpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
-    writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
-
-    //writefln("%s", cpuResult);
-    //writefln("%s", gpuResult);
-
-    // check result values.
-    foreach(i, e; cpuResult) {
-        assert(approxEqual(e, gpuResult[i]));
-    }
-}
-
 /// matrix product by CPU.
 void productCpu(
         const(float)[] lhs,
@@ -66,19 +30,26 @@ in {
     }
 }
 
-/// matrix product by GPU.
-void productGpu(
-        const(float)[] lhsArray,
-        const(float)[] rhsArray,
-        float[] resultArray,
-        uint rows,
-        uint cols,
-        uint resultCols)
-in {
-    assert(lhsArray.length == rows * cols);
-    assert(rhsArray.length == cols * resultCols);
-    assert(resultArray.length == rows * resultCols);
-} body {
+void main() {
+    // matrix size.
+    enum {
+        ROWS = 100,
+        COLS = 200,
+        RESULT_COLS = 300
+    }
+
+    // initialize operand matrixes.
+    auto lhs = new float[ROWS * COLS];
+    foreach(ref e; lhs) {
+        e = uniform01!float;
+    }
+    auto rhs = new float[COLS * RESULT_COLS];
+    foreach(ref e; rhs) {
+        e = uniform01!float;
+    }
+    auto cpuResult = new float[ROWS * RESULT_COLS];
+    auto gpuResult = new float[ROWS * RESULT_COLS];
+
     auto platformId = cl.loadOpenCl();
     writefln("loaded: %s %s %s(%s) %s [%s]",
         cl.getPlatformProfile(platformId),
@@ -140,27 +111,57 @@ in {
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    auto lhs = cl.createReadBuffer(context, lhsArray);
-    scope(exit) cl.releaseBuffer(lhs);
-    auto rhs = cl.createReadBuffer(context, rhsArray);
-    scope(exit) cl.releaseBuffer(rhs);
-    auto result = cl.createWriteBuffer(context, resultArray.length * float.sizeof);
-    scope(exit) cl.releaseBuffer(result);
+    auto lhsBuffer = cl.createReadBuffer(context, lhs);
+    scope(exit) cl.releaseBuffer(lhsBuffer);
+    auto rhsBuffer = cl.createReadBuffer(context, rhs);
+    scope(exit) cl.releaseBuffer(rhsBuffer);
+    auto resultBuffer = cl.createWriteBuffer(context, gpuResult.length * float.sizeof);
+    scope(exit) cl.releaseBuffer(resultBuffer);
 
     // set kernel arguments.
-    cl.setKernelArg(kernel, 0, lhs);
-    cl.setKernelArg(kernel, 1, rhs);
-    cl.setKernelArg(kernel, 2, result);
-    cl.setKernelArg(kernel, 3, rows);
-    cl.setKernelArg(kernel, 4, cols);
-    cl.setKernelArg(kernel, 5, resultCols);
+    cl.setKernelArg(kernel, 0, lhsBuffer);
+    cl.setKernelArg(kernel, 1, rhsBuffer);
+    cl.setKernelArg(kernel, 2, resultBuffer);
+    cl.setKernelArg(kernel, 3, ROWS);
+    cl.setKernelArg(kernel, 4, COLS);
+    cl.setKernelArg(kernel, 5, RESULT_COLS);
 
-    cl_event event;
-    cl.enqueueKernel(commandQueue, kernel, [13], [1]);
-    cl.enqueueReadBuffer(commandQueue, result, 0, resultArray, event);
-    cl.flushCommandQueue(commandQueue);
+    void productGpu() {
+        cl_event event;
+        cl.enqueueKernel(commandQueue, kernel, [13], [1]);
+        cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
+        cl.flushCommandQueue(commandQueue);
+        cl.waitAndReleaseEvents(event);
+        cl.finishCommandQueue(commandQueue);
+    }
 
-    cl.waitAndReleaseEvents(event);
-    cl.finishCommandQueue(commandQueue);
+    // benchmark CPU and GPU.
+    immutable cpuMsecs = benchmark!(() => productCpu(
+                lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
+    immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
+    writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
+
+    //writefln("%s", cpuResult);
+    //writefln("%s", gpuResult);
+
+    // check result values.
+    foreach(i, e; cpuResult) {
+        assert(approxEqual(e, gpuResult[i]));
+    }
+}
+
+/// matrix product by GPU.
+void productGpu(
+        const(float)[] lhsArray,
+        const(float)[] rhsArray,
+        float[] resultArray,
+        uint rows,
+        uint cols,
+        uint resultCols)
+in {
+    assert(lhsArray.length == rows * cols);
+    assert(rhsArray.length == cols * resultCols);
+    assert(resultArray.length == rows * resultCols);
+} body {
 }
 
