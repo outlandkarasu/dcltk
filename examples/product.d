@@ -120,7 +120,10 @@ in {
                 uint rows,
                 uint cols,
                 uint resultCols) {
-            for(size_t i = 0; i < rows; ++i) {
+            const size_t groupIndex = get_global_id(0);
+            const size_t groupSize = get_global_size(0);
+
+            for(size_t i = groupIndex; i < rows; i += groupSize) {
                 for(size_t j = 0; j < resultCols; ++j) {
                     float value = 0.0f;
                     for(size_t k = 0; k < cols; ++k) {
@@ -153,7 +156,7 @@ in {
     cl.setKernelArg(kernel, 5, resultCols);
 
     cl_event event;
-    cl.enqueueKernel(commandQueue, kernel, [1], [1]);
+    cl.enqueueKernel(commandQueue, kernel, [13], [1]);
     cl.enqueueReadBuffer(commandQueue, result, 0, resultArray, event);
     cl.flushCommandQueue(commandQueue);
 
