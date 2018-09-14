@@ -47,9 +47,9 @@ void productCpu(
         const(float)[] lhs,
         const(float)[] rhs,
         float[] result,
-        size_t rows,
-        size_t cols,
-        size_t resultCols)
+        uint rows,
+        uint cols,
+        uint resultCols)
 in {
     assert(lhs.length == rows * cols);
     assert(rhs.length == cols * resultCols);
@@ -71,9 +71,9 @@ void productGpu(
         const(float)[] lhsArray,
         const(float)[] rhsArray,
         float[] resultArray,
-        size_t rows,
-        size_t cols,
-        size_t resultCols)
+        uint rows,
+        uint cols,
+        uint resultCols)
 in {
     assert(lhsArray.length == rows * cols);
     assert(rhsArray.length == cols * resultCols);
@@ -117,9 +117,9 @@ in {
                 __global const float *lhs,
                 __global const float *rhs,
                 __global float *result,
-                size_t rows,
-                size_t cols,
-                size_t resultCols) {
+                uint rows,
+                uint cols,
+                uint resultCols) {
             for(size_t i = 0; i < rows; ++i) {
                 for(size_t j = 0; j < resultCols; ++j) {
                     float value = 0.0f;
