@@ -108,19 +108,36 @@ void main() {
                 __global float *result,
                 uint rows,
                 uint cols,
-                uint resultCols) {
+                uint resultCols,
+                __local float *localRow) {
             const size_t groupI = get_global_id(0);
             const size_t groupRows = get_global_size(0);
             const size_t groupJ = get_global_id(1);
             const size_t groupCols = get_global_size(1);
 
-            for(size_t i = groupI; i < rows; i += groupRows) {
-                for(size_t j = groupJ; j < resultCols; j += groupCols) {
+            const size_t localI = get_local_id(0);
+            const size_t localRows = get_local_size(0);
+            const size_t localJ = get_local_id(1);
+            const size_t localCols = get_local_size(1);
+
+            const size_t endRows = sub_sat(rows, (uint) groupI);
+            const size_t endCols = sub_sat(resultCols, (uint) groupJ);
+
+            for(size_t i = 0; i < endRows; i += groupRows) {
+                for(size_t j = 0; j < endCols; j += groupCols) {
                     float value = 0.0f;
-                    for(size_t k = 0; k < cols; ++k) {
-                        value += lhs[i * cols + k] * rhs[k * resultCols + j];
+
+                    for(size_t k = 0; k < cols; k += localCols) {
+
+                        barrier(CLK_LOCAL_MEM_FENCE);
+                        localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + k + localJ];
+                        barrier(CLK_LOCAL_MEM_FENCE);
+
+                        for(size_t lk = 0; lk < localCols; ++lk) {
+                            value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
+                        }
                     }
-                    result[i * resultCols + j] = value;
+                    result[(i + groupI) * resultCols + (j + groupJ)] = value;
                 }
             }
         }
@@ -145,6 +162,7 @@ void main() {
     cl.setKernelArg(kernel, 3, ROWS);
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
+    cl.allocateLocalMemory(kernel, 6, 1024);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),

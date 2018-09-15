@@ -53,6 +53,18 @@ void setKernelArg(T : const(T)[])(cl_kernel kernel, cl_uint index, const(T)[] va
 }
 
 /**
+ *  allocate local memory for kernel parameter.
+ *
+ *  Params:
+ *      kernel = kernel.
+ *      index = argument index. (0 to n - 1)
+ *      size = local memory size.
+ */
+void allocateLocalMemory(cl_kernel kernel, cl_uint index, size_t size) {
+    enforceCl(clSetKernelArg(kernel, index, size, null));
+}
+
+/**
  *  get kernel work group info.
  *
  *  Params:
