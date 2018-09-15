@@ -73,3 +73,8 @@ size_t getKernelWorkGroupSize(cl_kernel kernel, cl_device_id device) {
     return getKernelWorkGroupInfo!(size_t)(kernel, device, CL_KERNEL_WORK_GROUP_SIZE);
 }
 
+/// get kernel preferred work group size.
+size_t getKernelPreferredWorkGroupSizeMultiple(cl_kernel kernel, cl_device_id device) {
+    return getKernelWorkGroupInfo!(size_t)(kernel, device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE);
+}
+

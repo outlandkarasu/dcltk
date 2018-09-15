@@ -146,7 +146,9 @@ void main() {
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
 
-    writefln("kernel w: %s", cl.getKernelWorkGroupSize(kernel, device));
+    writefln("kernel w: %s, pw: %s",
+        cl.getKernelWorkGroupSize(kernel, device),
+        cl.getKernelPreferredWorkGroupSizeMultiple(kernel, device));
 
     void productGpu() {
         cl_event event;
