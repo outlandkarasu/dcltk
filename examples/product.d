@@ -30,6 +30,24 @@ in {
     }
 }
 
+///
+unittest {
+    immutable(float)[] lhs = [1, 2, 3, 4];
+    immutable(float)[] rhs = [5, 6, 7, 8];
+    auto result = new float[2 * 2];
+
+    productCpu(lhs, rhs, result, 2, 2, 2);
+
+    assert(approxEqual(1 * 5 + 2 * 7, result[0 * 2 + 0]));
+    assert(approxEqual(1 * 6 + 2 * 8, result[0 * 2 + 1]));
+    assert(approxEqual(3 * 5 + 4 * 7, result[1 * 2 + 0]));
+    assert(approxEqual(3 * 6 + 4 * 8, result[1 * 2 + 1]));
+
+    auto resultScalar = new float[1];
+    productCpu(lhs, rhs, resultScalar, 1, 4, 1);
+    assert(approxEqual(1 * 5 + 2 * 6 + 3 * 7 + 4 * 8, resultScalar[0]));
+}
+
 void main() {
     // matrix size.
     enum {
@@ -152,20 +170,5 @@ void main() {
     foreach(i, e; cpuResult) {
         assert(approxEqual(e, gpuResult[i]));
     }
-}
-
-/// matrix product by GPU.
-void productGpu(
-        const(float)[] lhsArray,
-        const(float)[] rhsArray,
-        float[] resultArray,
-        uint rows,
-        uint cols,
-        uint resultCols)
-in {
-    assert(lhsArray.length == rows * cols);
-    assert(rhsArray.length == cols * resultCols);
-    assert(resultArray.length == rows * resultCols);
-} body {
 }
 
