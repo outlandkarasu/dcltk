@@ -12,12 +12,10 @@ configuration "library" {
 configuration "examples-hello-world" {
     targetType "executable"
     mainSourceFile "examples/hello_world.d"
-    buildOptions "unittests"
 }
 
 configuration "examples-product" {
     targetType "executable"
     mainSourceFile "examples/product.d"
-    buildOptions "unittests"
 }
 
