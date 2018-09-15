@@ -91,11 +91,13 @@ void main() {
                 uint rows,
                 uint cols,
                 uint resultCols) {
-            const size_t groupIndex = get_global_id(0);
-            const size_t groupSize = get_global_size(0);
+            const size_t groupI = get_global_id(0);
+            const size_t groupRows = get_global_size(0);
+            const size_t groupJ = get_global_id(1);
+            const size_t groupCols = get_global_size(1);
 
-            for(size_t i = groupIndex; i < rows; i += groupSize) {
-                for(size_t j = 0; j < resultCols; ++j) {
+            for(size_t i = groupI; i < rows; i += groupRows) {
+                for(size_t j = groupJ; j < resultCols; j += groupCols) {
                     float value = 0.0f;
                     for(size_t k = 0; k < cols; ++k) {
                         value += lhs[i * cols + k] * rhs[k * resultCols + j];
