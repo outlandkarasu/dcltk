@@ -162,7 +162,7 @@ void main() {
     cl.setKernelArg(kernel, 3, ROWS);
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
-    cl.allocateLocalMemory(kernel, 6, 1024);
+    cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
