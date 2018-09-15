@@ -5,6 +5,7 @@ import derelict.opencl.cl;
 import dcltk.error : enforceCl;
 
 import std.string : toStringz;
+import std.exception : assumeUnique;
 
 /**
  *  create kernel.
@@ -49,5 +50,26 @@ void setKernelArg(T)(cl_kernel kernel, cl_uint index, T value) {
  */
 void setKernelArg(T : const(T)[])(cl_kernel kernel, cl_uint index, const(T)[] value) {
     enforceCl(clSetKernelArg(kernel, index, T.sizeof * value.length, value.ptr));
+}
+
+/**
+ *  get kernel work group info.
+ *
+ *  Params:
+ *      kernel = kernel.
+ *      device = device.
+ *      name = parameter name.
+ *  Returns:
+ *      kernel work group info.
+ */
+T getKernelWorkGroupInfo(T)(cl_kernel kernel, cl_device_id device, cl_kernel_work_group_info name) {
+    T result;
+    enforceCl(clGetKernelWorkGroupInfo(kernel, device, name, result.sizeof, &result, null));
+    return result;
+}
+
+/// get kernel work group size.
+size_t getKernelWorkGroupSize(cl_kernel kernel, cl_device_id device) {
+    return getKernelWorkGroupInfo!(size_t)(kernel, device, CL_KERNEL_WORK_GROUP_SIZE);
 }
 

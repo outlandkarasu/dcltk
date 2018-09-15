@@ -1,5 +1,5 @@
 import std.datetime.stopwatch : benchmark;
-import std.math : approxEqual;
+import std.math : approxEqual, sqrt, floor, ceil;
 import std.random : uniform01;
 import std.stdio : writefln;
 
@@ -128,9 +128,11 @@ void main() {
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
 
+    writefln("kernel w: %s", cl.getKernelWorkGroupSize(kernel, device));
+
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [13], [1]);
+        cl.enqueueKernel(commandQueue, kernel, [1024], [1]);
         cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
