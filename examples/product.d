@@ -130,6 +130,8 @@ void main() {
                         barrier(CLK_LOCAL_MEM_FENCE);
                         if((i + groupI) < rows && (k + localJ) < cols) {
                             localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
+                        }
+                        if((j + groupJ) < resultCols && (k + localI) < cols) {
                             localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
                         }
                         barrier(CLK_LOCAL_MEM_FENCE);
@@ -177,7 +179,7 @@ void main() {
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [1024], [1]);
+        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32]);
         cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
