@@ -109,7 +109,8 @@ void main() {
                 uint rows,
                 uint cols,
                 uint resultCols,
-                __local float *localRow) {
+                __local float *localRow,
+                __local float *localCol) {
             const size_t groupI = get_global_id(0);
             const size_t groupRows = get_global_size(0);
             const size_t groupJ = get_global_id(1);
@@ -128,13 +129,15 @@ void main() {
 
                         barrier(CLK_LOCAL_MEM_FENCE);
                         if((i + groupI) < rows && (k + localJ) < cols) {
-                            localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + k + localJ];
+                            localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
+                            localCol[localI * localCols + localJ] = rhs[(k + localJ) * resultCols + (j + groupJ)];
                         }
                         barrier(CLK_LOCAL_MEM_FENCE);
 
                         if((i + groupI) < rows && (j + groupJ) < resultCols) {
 	                        for(size_t lk = 0; lk < localCols && (k + lk) < cols; ++lk) {
-	                            value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
+	                            //value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
+	                            value += localRow[localI * localCols + lk] * localCol[localI * localCols + lk];
 	                        }
                         }
                     }
@@ -166,6 +169,7 @@ void main() {
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
     cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, 1024 * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
@@ -173,7 +177,7 @@ void main() {
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32]);
+        cl.enqueueKernel(commandQueue, kernel, [1024], [1]);
         cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
