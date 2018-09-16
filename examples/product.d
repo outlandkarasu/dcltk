@@ -130,14 +130,14 @@ void main() {
                         barrier(CLK_LOCAL_MEM_FENCE);
                         if((i + groupI) < rows && (k + localJ) < cols) {
                             localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
-                            localCol[localI * localCols + localJ] = rhs[(k + localJ) * resultCols + (j + groupJ)];
+                            localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
                         }
                         barrier(CLK_LOCAL_MEM_FENCE);
 
                         if((i + groupI) < rows && (j + groupJ) < resultCols) {
 	                        for(size_t lk = 0; lk < localCols && (k + lk) < cols; ++lk) {
 	                            //value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
-	                            value += localRow[localI * localCols + lk] * localCol[localI * localCols + lk];
+	                            value += localRow[localI * localCols + lk] * localCol[lk * localCols + localJ];
 	                        }
                         }
                     }
