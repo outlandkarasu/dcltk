@@ -51,9 +51,9 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 100,
-        COLS = 200,
-        RESULT_COLS = 300
+        ROWS = 200,
+        COLS = 300,
+        RESULT_COLS = 400
     }
 
     // initialize operand matrixes.
@@ -108,19 +108,44 @@ void main() {
                 __global float *result,
                 uint rows,
                 uint cols,
-                uint resultCols) {
+                uint resultCols,
+                __local float *localRow,
+                __local float *localCol) {
             const size_t groupI = get_global_id(0);
             const size_t groupRows = get_global_size(0);
             const size_t groupJ = get_global_id(1);
             const size_t groupCols = get_global_size(1);
 
-            for(size_t i = groupI; i < rows; i += groupRows) {
-                for(size_t j = groupJ; j < resultCols; j += groupCols) {
+            const size_t localI = get_local_id(0);
+            const size_t localRows = get_local_size(0);
+            const size_t localJ = get_local_id(1);
+            const size_t localCols = get_local_size(1);
+
+            for(size_t i = 0; i < rows; i += groupRows) {
+                for(size_t j = 0; j < resultCols; j += groupCols) {
                     float value = 0.0f;
-                    for(size_t k = 0; k < cols; ++k) {
-                        value += lhs[i * cols + k] * rhs[k * resultCols + j];
+
+                    for(size_t k = 0; k < cols; k += localCols) {
+
+                        barrier(CLK_LOCAL_MEM_FENCE);
+                        if((i + groupI) < rows && (k + localJ) < cols) {
+                            localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
+                        }
+                        if((j + groupJ) < resultCols && (k + localI) < cols) {
+                            localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
+                        }
+                        barrier(CLK_LOCAL_MEM_FENCE);
+
+                        if((i + groupI) < rows && (j + groupJ) < resultCols) {
+	                        for(size_t lk = 0; lk < localCols && (k + lk) < cols; ++lk) {
+	                            //value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
+	                            value += localRow[localI * localCols + lk] * localCol[lk * localCols + localJ];
+	                        }
+                        }
                     }
-                    result[i * resultCols + j] = value;
+                    if((i + groupI) < rows && (j + groupJ) < resultCols) {
+                    	result[(i + groupI) * resultCols + (j + groupJ)] = value;
+                    }
                 }
             }
         }
@@ -145,6 +170,8 @@ void main() {
     cl.setKernelArg(kernel, 3, ROWS);
     cl.setKernelArg(kernel, 4, COLS);
     cl.setKernelArg(kernel, 5, RESULT_COLS);
+    cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, 1024 * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
@@ -152,7 +179,7 @@ void main() {
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [1024], [1]);
+        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32]);
         cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
@@ -165,8 +192,8 @@ void main() {
     immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
     writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
 
-    //writefln("%s", cpuResult);
-    //writefln("%s", gpuResult);
+    // writefln("%s", cpuResult);
+    // writefln("%s", gpuResult);
 
     // check result values.
     foreach(i, e; cpuResult) {
