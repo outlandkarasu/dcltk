@@ -3,6 +3,16 @@ module dcltk.command_queue;
 import derelict.opencl.cl;
 
 import dcltk.error : enforceCl;
+import dcltk.device :
+    getDeviceMaxWorkItemSizes,
+    getDeviceMaxComputeUnits;
+import dcltk.kernel :
+    getKernelPreferredWorkGroupSizeMultiple,
+    getKernelWorkGroupSize;
+
+import std.algorithm : min, max;
+import std.exception : assumeUnique;
+import std.math : sqrt, ceil;
 
 /**
  *  create in-order command queue.
@@ -56,6 +66,26 @@ cl_command_queue createCommandQueue(
 /// release command queue.
 void releaseCommandQueue(cl_command_queue commandQueue) {
     enforceCl(clReleaseCommandQueue(commandQueue));
+}
+
+/**
+ *  get command queue information.
+ *
+ *  Params:
+ *      commandQueue = command queue.
+ *      paramName = information name.
+ *  Returns:
+ *      information value.
+ */
+T getCommandQueueInfo(T)(cl_command_queue commandQueue, cl_command_queue_info paramName) {
+    T result;
+    enforceCl(clGetCommandQueueInfo(commandQueue, paramName, T.sizeof, &result, null));
+    return result;
+}
+
+/// get command queue device id.
+cl_device_id getCommandQueueDeviceId(cl_command_queue commandQueue) {
+    return getCommandQueueInfo!(cl_device_id)(commandQueue, CL_QUEUE_DEVICE);
 }
 
 /**
@@ -130,5 +160,74 @@ void flushCommandQueue(cl_command_queue commandQueue) {
 /// finish command queue.
 void finishCommandQueue(cl_command_queue commandQueue) {
     enforceCl(clFinish(commandQueue));
+}
+
+/// work item sizes
+struct CommandQueueWorkSizes {
+    size_t[] globalWorkSizes;
+    size_t[] localWorkSizes;
+}
+
+/**
+ *  calculate work sizes.
+ *
+ *  Params:
+ *      commandQueue = command queue.
+ *      kernel = kernel.
+ */
+immutable(CommandQueueWorkSizes) calculateWorkSizes(
+        cl_command_queue commandQueue,
+        cl_kernel kernel) {
+    auto deviceId = getCommandQueueDeviceId(commandQueue);
+    immutable preferredSize = getKernelPreferredWorkGroupSizeMultiple(kernel, deviceId);
+    immutable maxSizes = getDeviceMaxWorkItemSizes(deviceId);
+    if(maxSizes[1] <= 1) {
+        return immutable(CommandQueueWorkSizes)([maxSizes[0]], [preferredSize]);
+    }
+
+    auto groups = cast(size_t) ceil(sqrt(cast(real) getDeviceMaxComputeUnits(deviceId)));
+    immutable groups0 = min(groups, max(maxSizes[0] / preferredSize, 1));
+    immutable groups1 = min(groups, max(maxSizes[1] / preferredSize, 1));
+    return immutable(CommandQueueWorkSizes)(
+        [preferredSize * groups0, preferredSize * groups1],
+        [preferredSize, preferredSize]);
+}
+
+/**
+ *  enqueue kernel.
+ *
+ *  Params:
+ *      commandQueue = command queue.
+ *      kernel = kernel.
+ *      workSizes = work item sizes.
+ */
+void enqueueKernel(cl_command_queue commandQueue, cl_kernel kernel) {
+    immutable workSizes = calculateWorkSizes(commandQueue, kernel);
+    enqueueKernel(
+        commandQueue,
+        kernel,
+        workSizes.globalWorkSizes,
+        workSizes.localWorkSizes);
+}
+
+/**
+ *  enqueue kernel.
+ *
+ *  Params:
+ *      commandQueue = command queue.
+ *      kernel = kernel.
+ *      event = event.
+ */
+void enqueueKernel(
+        cl_command_queue commandQueue,
+        cl_kernel kernel,
+        out cl_event event) {
+    immutable workSizes = calculateWorkSizes(commandQueue, kernel);
+    enqueueKernel(
+        commandQueue,
+        kernel,
+        workSizes.globalWorkSizes,
+        workSizes.localWorkSizes,
+        event);
 }
 

@@ -173,24 +173,16 @@ void main() {
     cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
     cl.allocateLocalMemory(kernel, 7, 1024 * float.sizeof);
 
-    writefln("kernel w: %s, pw: %s",
-        cl.getKernelWorkGroupSize(kernel, device),
-        cl.getKernelPreferredWorkGroupSizeMultiple(kernel, device));
-
-    immutable(size_t)[] globalWorkItemSizes;
-    immutable(size_t)[] localWorkItemSizes;
-    if(cl.getKernelWorkGroupSize(kernel, device) < 32) {
-        globalWorkItemSizes = [1024];
-        localWorkItemSizes = [1];
-    } else {
-        globalWorkItemSizes = [32 * 4, 32 * 4];
-        localWorkItemSizes = [32, 32];
-    }
-    writefln("global items: %s, local items %s", globalWorkItemSizes, localWorkItemSizes);
+    const workSizes = cl.calculateWorkSizes(commandQueue, kernel);
+    writefln("workSizes: %s", workSizes);
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, globalWorkItemSizes, localWorkItemSizes);
+        cl.enqueueKernel(
+            commandQueue,
+            kernel,
+            workSizes.globalWorkSizes,
+            workSizes.localWorkSizes);
         cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
