@@ -120,6 +120,7 @@ void main() {
             const size_t localRows = get_local_size(0);
             const size_t localJ = get_local_id(1);
             const size_t localCols = get_local_size(1);
+            const size_t localId = localI * localCols + localJ;
 
             for(size_t i = 0; i < rows; i += groupRows) {
                 for(size_t j = 0; j < resultCols; j += groupCols) {
@@ -128,24 +129,15 @@ void main() {
                     for(size_t k = 0; k < cols; k += localCols) {
 
                         barrier(CLK_LOCAL_MEM_FENCE);
-                        if((i + groupI) < rows && (k + localJ) < cols) {
-                            localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
-                        }
-                        if((j + groupJ) < resultCols && (k + localI) < cols) {
-                            localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
-                        }
+                        localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
+                        localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
                         barrier(CLK_LOCAL_MEM_FENCE);
 
-                        if((i + groupI) < rows && (j + groupJ) < resultCols) {
-	                        for(size_t lk = 0; lk < localCols && (k + lk) < cols; ++lk) {
-	                            //value += localRow[localI * localCols + lk] * rhs[(k + lk) * resultCols + (j + groupJ)];
-	                            value += localRow[localI * localCols + lk] * localCol[lk * localCols + localJ];
-	                        }
-                        }
+	                    for(size_t lk = 0; lk < localCols; ++lk) {
+	                        value += localRow[localI * localCols + lk] * localCol[lk * localCols + localJ];
+	                    }
                     }
-                    if((i + groupI) < rows && (j + groupJ) < resultCols) {
-                    	result[(i + groupI) * resultCols + (j + groupJ)] = value;
-                    }
+                    result[(i + groupI) * resultCols + (j + groupJ)] = value;
                 }
             }
         }
@@ -160,11 +152,14 @@ void main() {
     writefln("workSizes: %s", workSizes);
 
     // calculate padded matrix size.
-    immutable groupWidth = workSizes.localWorkSizes[0];
-    immutable groupSize = groupWidth * workSizes.localWorkSizes[1];
-    immutable bufferCols = (COLS + groupWidth - 1) / groupWidth;
-    immutable bufferRows = (ROWS + groupWidth - 1) / groupWidth;
-    immutable bufferResultCols = (RESULT_COLS + groupWidth - 1) / groupWidth;
+    immutable groupSize = workSizes.localWorkSizes[0] * workSizes.localWorkSizes[1];
+    immutable workWidth = workSizes.globalWorkSizes[1];
+    immutable workHeight = workSizes.globalWorkSizes[0];
+    immutable totalWorkSize = workWidth * workHeight;
+    immutable bufferCols = (COLS + workWidth - 1) / workWidth * workWidth;
+    immutable bufferRows = (ROWS + workHeight - 1) / workHeight * workHeight;
+    immutable bufferResultCols = (RESULT_COLS + workWidth - 1) / workWidth * workWidth;
+    writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
     immutable rhsSize = bufferResultCols * bufferCols;
