@@ -220,7 +220,7 @@ void main() {
             resultBuffer,
             cl.Position(0, 0),
             cl.Region(RESULT_COLS, ROWS),
-            RESULT_COLS,
+            bufferResultCols,
             gpuResult,
             event);
         cl.flushCommandQueue(commandQueue);
