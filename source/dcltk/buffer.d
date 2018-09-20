@@ -106,6 +106,106 @@ void enqueueReadBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, voi
     enforceCl(clEnqueueReadBuffer(queue, buffer, false, offset, dest.length, dest.ptr, 0, null, null));
 }
 
+/// Position struct.
+struct Position {
+    size_t x;
+    size_t y;
+    size_t z;
+}
+
+/// Region struct.
+struct Region {
+    size_t w;
+    size_t h;
+    size_t d = 1;
+}
+
+private immutable(size_t)[] ZERO_ORIGIN = [0, 0, 0];
+
+/**
+ *  enqueue read buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = read from position.
+ *      bufferRegion = read region.
+ *      bufferRowSize = buffer row size.
+ *      dest = dest memory.
+ *      event = event.
+ */
+private void enqueueReadBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        T[] dest,
+        cl_event* event)
+in {
+    assert(bufferRegion.w * bufferRegion.h * bufferRegion.d == dest.length);
+} body {
+    enforceCl(clEnqueueReadBufferRect(
+        queue,
+        buffer,
+        false,
+        [bufferPos.x * T.sizeof, bufferPos.y, bufferPos.z].ptr,
+        ZERO_ORIGIN.ptr,
+        [bufferRegion.w * T.sizeof, bufferRegion.h, bufferRegion.d].ptr,
+        bufferRowSize * T.sizeof,
+        0,
+        0,
+        0,
+        dest.ptr,
+        0,
+        null,
+        event));
+}
+
+/**
+ *  enqueue read buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = read from position.
+ *      bufferRegion = read region.
+ *      bufferRowSize = buffer row size.
+ *      dest = dest memory.
+ *      event = event.
+ */
+void enqueueReadBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        T[] dest,
+        out cl_event event) {
+    enqueueReadBuffer(queue, buffer, bufferPos, bufferRegion, bufferRowSize, dest, &event);
+}
+
+/**
+ *  enqueue read buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = read from position.
+ *      bufferRegion = read region.
+ *      bufferRowSize = buffer row size.
+ *      dest = dest memory.
+ */
+void enqueueReadBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        T[] dest) {
+    enqueueReadBuffer(queue, buffer, bufferPos, bufferRegion, bufferRowSize, dest, null);
+}
+
 /**
  *  enqueue write buffer.
  *
@@ -131,5 +231,89 @@ void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, co
  */
 void enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer, size_t offset, const(void)[] source) {
     enforceCl(clEnqueueWriteBuffer(queue, buffer, false, offset, source.length, source.ptr, 0, null, null));
+}
+
+/**
+ *  enqueue write buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = write to position.
+ *      bufferRegion = write region.
+ *      bufferRowPitch = buffer row pitch.
+ *      source = source memory.
+ *      event = event.
+ */
+private void enqueueWriteBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        const(T)[] source,
+        cl_event* event)
+in {
+    assert(bufferRegion.w * bufferRegion.h * bufferRegion.d == source.length);
+} body {
+    enforceCl(clEnqueueWriteBufferRect(
+        queue,
+        buffer,
+        false,
+        [bufferPos.x * T.sizeof, bufferPos.y, bufferPos.z].ptr,
+        ZERO_ORIGIN.ptr,
+        [bufferRegion.w * T.sizeof, bufferRegion.h, bufferRegion.d].ptr,
+        bufferRowSize * T.sizeof,
+        0,
+        0,
+        0,
+        source.ptr,
+        0,
+        null,
+        event));
+}
+
+/**
+ *  enqueue write buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = write to position.
+ *      bufferRegion = write region.
+ *      bufferRowSize = buffer row size.
+ *      source = source memory.
+ *      event = event.
+ */
+void enqueueWriteBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        const(T)[] source,
+        out cl_event event) {
+    enqueueWriteBuffer(queue, buffer, bufferPos, bufferRegion, bufferRowSize, source, &event);
+}
+
+/**
+ *  enqueue write buffer rect.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer object.
+ *      bufferPos = write to position.
+ *      bufferRegion = write region.
+ *      bufferRowSize = buffer row size.
+ *      source = source memory.
+ */
+void enqueueWriteBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        auto ref const(Position) bufferPos,
+        auto ref const(Region) bufferRegion,
+        size_t bufferRowSize,
+        const(T)[] source) {
+    enqueueWriteBuffer(queue, buffer, bufferPos, bufferRegion, bufferRowSize, source, null);
 }
 

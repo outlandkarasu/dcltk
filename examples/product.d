@@ -163,6 +163,23 @@ void main() {
     auto resultBuffer = cl.createWriteBuffer(context, gpuResult.length * float.sizeof);
     scope(exit) cl.releaseBuffer(resultBuffer);
 
+    // copy operand matrixes.
+    cl.enqueueWriteBuffer(
+            commandQueue,
+            lhsBuffer,
+            cl.Position(0, 0),
+            cl.Region(COLS, ROWS),
+            COLS,
+            lhs);
+    cl.enqueueWriteBuffer(
+            commandQueue,
+            rhsBuffer,
+            cl.Position(0, 0),
+            cl.Region(RESULT_COLS, COLS),
+            RESULT_COLS,
+            rhs);
+
+
     // set kernel arguments.
     cl.setKernelArg(kernel, 0, lhsBuffer);
     cl.setKernelArg(kernel, 1, rhsBuffer);
@@ -183,7 +200,14 @@ void main() {
             kernel,
             workSizes.globalWorkSizes,
             workSizes.localWorkSizes);
-        cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
+        cl.enqueueReadBuffer(
+            commandQueue,
+            resultBuffer,
+            cl.Position(0, 0),
+            cl.Region(RESULT_COLS, ROWS),
+            RESULT_COLS,
+            gpuResult,
+            event);
         cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
         cl.finishCommandQueue(commandQueue);
