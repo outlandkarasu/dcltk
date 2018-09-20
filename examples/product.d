@@ -164,6 +164,12 @@ void main() {
     scope(exit) cl.releaseBuffer(resultBuffer);
 
     // copy operand matrixes.
+    cl.enqueueFillBuffer(
+            commandQueue,
+            lhsBuffer,
+            [0.0f],
+            0,
+            COLS * ROWS);
     cl.enqueueWriteBuffer(
             commandQueue,
             lhsBuffer,
@@ -171,6 +177,12 @@ void main() {
             cl.Region(COLS, ROWS),
             COLS,
             lhs);
+    cl.enqueueFillBuffer(
+            commandQueue,
+            rhsBuffer,
+            [0.0f],
+            0,
+            RESULT_COLS * COLS);
     cl.enqueueWriteBuffer(
             commandQueue,
             rhsBuffer,

@@ -317,3 +317,74 @@ void enqueueWriteBuffer(T)(
     enqueueWriteBuffer(queue, buffer, bufferPos, bufferRegion, bufferRowSize, source, null);
 }
 
+/**
+ *  enqueue buffer filling task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer.
+ *      pattern = fill pattern.
+ *      offset = filling offset.
+ *      count = fill count.
+ *      event = event.
+ */
+private void enqueueFillBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        const(T)[] pattern,
+        size_t offset,
+        size_t count,
+        cl_event* event) {
+    immutable patternBytes = pattern.length * T.sizeof;
+    enforceCl(clEnqueueFillBuffer(
+        queue,
+        buffer,
+        pattern.ptr,
+        patternBytes,
+        offset * T.sizeof,
+        count * patternBytes,
+        0,
+        null,
+        event));
+}
+
+/**
+ *  enqueue buffer filling task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer.
+ *      pattern = fill pattern.
+ *      offset = filling offset.
+ *      count = fill count.
+ *      event = event.
+ */
+void enqueueFillBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        const(T)[] pattern,
+        size_t offset,
+        size_t count,
+        out cl_event event) {
+    enqueueFillBuffer(queue, buffer, pattern, offset, count, &event);
+}
+
+/**
+ *  enqueue buffer filling task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      buffer = buffer.
+ *      pattern = fill pattern.
+ *      offset = filling offset.
+ *      count = fill count.
+ */
+void enqueueFillBuffer(T)(
+        cl_command_queue queue,
+        cl_mem buffer,
+        const(T)[] pattern,
+        size_t offset,
+        size_t count) {
+    enqueueFillBuffer(queue, buffer, pattern, offset, count, null);
+}
+
