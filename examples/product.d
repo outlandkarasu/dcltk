@@ -156,9 +156,9 @@ void main() {
     immutable workWidth = workSizes.globalWorkSizes[1];
     immutable workHeight = workSizes.globalWorkSizes[0];
     immutable totalWorkSize = workWidth * workHeight;
-    immutable bufferCols = (COLS + workWidth - 1) / workWidth * workWidth;
-    immutable bufferRows = (ROWS + workHeight - 1) / workHeight * workHeight;
-    immutable bufferResultCols = (RESULT_COLS + workWidth - 1) / workWidth * workWidth;
+    immutable bufferCols = cast(uint)((COLS + workWidth - 1) / workWidth * workWidth);
+    immutable bufferRows = cast(uint)((ROWS + workHeight - 1) / workHeight * workHeight);
+    immutable bufferResultCols = cast(uint)((RESULT_COLS + workWidth - 1) / workWidth * workWidth);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
