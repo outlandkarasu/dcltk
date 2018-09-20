@@ -156,54 +156,57 @@ void main() {
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    auto lhsBuffer = cl.createReadBuffer(context, lhs);
+    const workSizes = cl.calculateWorkSizes(commandQueue, kernel);
+    writefln("workSizes: %s", workSizes);
+
+    // calculate padded matrix size.
+    immutable groupWidth = workSizes.localWorkSizes[0];
+    immutable groupSize = groupWidth * workSizes.localWorkSizes[1];
+    immutable bufferCols = (COLS + groupWidth - 1) / groupWidth;
+    immutable bufferRows = (ROWS + groupWidth - 1) / groupWidth;
+    immutable bufferResultCols = (RESULT_COLS + groupWidth - 1) / groupWidth;
+
+    immutable lhsSize = bufferCols * bufferRows;
+    immutable rhsSize = bufferResultCols * bufferCols;
+    immutable resultSize = bufferResultCols * bufferRows;
+
+    // create buffers.
+    auto lhsBuffer = cl.createReadBuffer(context, lhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(lhsBuffer);
-    auto rhsBuffer = cl.createReadBuffer(context, rhs);
+    auto rhsBuffer = cl.createReadBuffer(context, rhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(rhsBuffer);
-    auto resultBuffer = cl.createWriteBuffer(context, gpuResult.length * float.sizeof);
+    auto resultBuffer = cl.createWriteBuffer(context, resultSize * float.sizeof);
     scope(exit) cl.releaseBuffer(resultBuffer);
 
-    // copy operand matrixes.
+    // copy parameter matrixes.
     cl.enqueueFillBuffer(
-            commandQueue,
-            lhsBuffer,
-            [0.0f],
-            0,
-            COLS * ROWS);
+        commandQueue, lhsBuffer, [0.0f], 0, lhsSize);
     cl.enqueueWriteBuffer(
-            commandQueue,
-            lhsBuffer,
-            cl.Position(0, 0),
-            cl.Region(COLS, ROWS),
-            COLS,
-            lhs);
+        commandQueue,
+        lhsBuffer,
+        cl.Position(0, 0),
+        cl.Region(COLS, ROWS),
+        bufferCols,
+        lhs);
     cl.enqueueFillBuffer(
-            commandQueue,
-            rhsBuffer,
-            [0.0f],
-            0,
-            RESULT_COLS * COLS);
+        commandQueue, rhsBuffer, [0.0f], 0, rhsSize);
     cl.enqueueWriteBuffer(
-            commandQueue,
-            rhsBuffer,
-            cl.Position(0, 0),
-            cl.Region(RESULT_COLS, COLS),
-            RESULT_COLS,
-            rhs);
-
+        commandQueue,
+        rhsBuffer,
+        cl.Position(0, 0),
+        cl.Region(RESULT_COLS, COLS),
+        bufferResultCols,
+        rhs);
 
     // set kernel arguments.
     cl.setKernelArg(kernel, 0, lhsBuffer);
     cl.setKernelArg(kernel, 1, rhsBuffer);
     cl.setKernelArg(kernel, 2, resultBuffer);
-    cl.setKernelArg(kernel, 3, ROWS);
-    cl.setKernelArg(kernel, 4, COLS);
-    cl.setKernelArg(kernel, 5, RESULT_COLS);
-    cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, 1024 * float.sizeof);
-
-    const workSizes = cl.calculateWorkSizes(commandQueue, kernel);
-    writefln("workSizes: %s", workSizes);
+    cl.setKernelArg(kernel, 3, bufferRows);
+    cl.setKernelArg(kernel, 4, bufferCols);
+    cl.setKernelArg(kernel, 5, bufferResultCols);
+    cl.allocateLocalMemory(kernel, 6, groupSize * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, groupSize * float.sizeof);
 
     void productGpu() {
         cl_event event;

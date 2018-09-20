@@ -182,7 +182,7 @@ immutable(CommandQueueWorkSizes) calculateWorkSizes(
     immutable preferredSize = getKernelPreferredWorkGroupSizeMultiple(kernel, deviceId);
     immutable maxSizes = getDeviceMaxWorkItemSizes(deviceId);
     if(maxSizes[1] <= 1) {
-        return immutable(CommandQueueWorkSizes)([maxSizes[0]], [preferredSize]);
+        return immutable(CommandQueueWorkSizes)([maxSizes[0], 1], [preferredSize, 1]);
     }
 
     auto groups = cast(size_t) ceil(sqrt(cast(real) getDeviceMaxComputeUnits(deviceId)));
