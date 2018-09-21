@@ -1,6 +1,8 @@
 import std.datetime.stopwatch : benchmark;
 import std.math : approxEqual, sqrt, floor, ceil;
+import std.parallelism : parallel;
 import std.random : uniform01;
+import std.range : iota;
 import std.stdio : writefln;
 
 import cl = dcltk;
@@ -19,7 +21,7 @@ in {
     assert(rhs.length == cols * resultCols);
     assert(result.length == rows * resultCols);
 } body {
-    for(size_t i = 0; i < rows; ++i) {
+    foreach(i; parallel(iota(0, rows))) {
         for(size_t j = 0; j < resultCols; ++j) {
             float value = 0.0f;
             for(size_t k = 0; k < cols; ++k) {
