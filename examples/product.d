@@ -145,17 +145,14 @@ void main() {
                         localCol[localColOffset + localI] = rhs[(k + localI) * resultCols + globalCol];
                         barrier(CLK_LOCAL_MEM_FENCE);
 
-                        if(localCols4) {
-	                        for(size_t lk = 0; lk < localCols4; ++lk) {
-                                const float4 r = vload4(localRowOffset4 + lk, localRow);
-                                const float4 c = vload4(localColOffset4 + lk, localCol);
-                                value += dot(r, c);
-	                        }
-                        } else {
-	                        for(size_t lk = 0; lk < localCols; ++lk) {
-                                value = mad(localRow[localRowOffset + lk], localCol[localColOffset + lk], value);
-	                        }
-                        }
+	                    for(size_t lk = 0; lk < localCols4; ++lk) {
+                            const float4 r = vload4(localRowOffset4 + lk, localRow);
+                            const float4 c = vload4(localColOffset4 + lk, localCol);
+                            value += dot(r, c);
+	                    }
+	                    for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
+                            value = mad(localRow[localRowOffset + lk], localCol[localColOffset + lk], value);
+	                    }
                     }
                     result[globalRowOffset + globalCol] = value;
                 }
