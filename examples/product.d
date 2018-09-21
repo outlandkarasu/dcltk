@@ -135,8 +135,10 @@ void main() {
                         localCol[localJ * localRows + localI] = rhs[(k + localI) * resultCols + (j + groupJ)];
                         barrier(CLK_LOCAL_MEM_FENCE);
 
-	                    for(size_t lk = 0; lk < localCols; ++lk) {
-	                        value += localRow[localI * localCols + lk] * localCol[localJ * localRows + lk];
+	                    for(size_t lk = 0; lk < localCols; lk += 4) {
+                            const float4 r = vload4(localI * localCols + lk, localRow);
+                            const float4 c = vload4(localJ * localRows + lk, localCol);
+                            value += dot(r, c);
 	                    }
                     }
                     result[(i + groupI) * resultCols + (j + groupJ)] = value;
