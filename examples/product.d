@@ -122,26 +122,42 @@ void main() {
             const size_t localRows = get_local_size(0);
             const size_t localJ = get_local_id(1);
             const size_t localCols = get_local_size(1);
-            const size_t localId = localI * localCols + localJ;
+
+            const size_t localRowOffset = localI * localCols;
+            const size_t localColOffset = localJ * localRows;
+
+            // for vectorize.
+            const size_t localCols4 = localCols / 4;
+            const size_t localRowOffset4 = localRowOffset / 4;
+            const size_t localColOffset4 = localColOffset / 4;
 
             for(size_t i = 0; i < rows; i += groupRows) {
+                const size_t globalRow = i + groupI;
+                const size_t globalRowOffset = globalRow * resultCols;
                 for(size_t j = 0; j < resultCols; j += groupCols) {
+                    const size_t globalCol = j + groupJ;
                     float value = 0.0f;
 
                     for(size_t k = 0; k < cols; k += localCols) {
 
                         barrier(CLK_LOCAL_MEM_FENCE);
-                        localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
-                        localCol[localJ * localRows + localI] = rhs[(k + localI) * resultCols + (j + groupJ)];
+                        localRow[localRowOffset + localJ] = lhs[globalRow * cols + (k + localJ)];
+                        localCol[localColOffset + localI] = rhs[(k + localI) * resultCols + globalCol];
                         barrier(CLK_LOCAL_MEM_FENCE);
 
-	                    for(size_t lk = 0; lk < localCols; lk += 4) {
-                            const float4 r = vload4(localI * localCols + lk, localRow);
-                            const float4 c = vload4(localJ * localRows + lk, localCol);
-                            value += dot(r, c);
-	                    }
+                        if(localCols4) {
+	                        for(size_t lk = 0; lk < localCols4; ++lk) {
+                                const float4 r = vload4(localRowOffset4 + lk, localRow);
+                                const float4 c = vload4(localColOffset4 + lk, localCol);
+                                value += dot(r, c);
+	                        }
+                        } else {
+	                        for(size_t lk = 0; lk < localCols; ++lk) {
+                                value = mad(localRow[localRowOffset + lk], localCol[localColOffset + lk], value);
+	                        }
+                        }
                     }
-                    result[(i + groupI) * resultCols + (j + groupJ)] = value;
+                    result[globalRowOffset + globalCol] = value;
                 }
             }
         }
