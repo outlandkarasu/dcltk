@@ -180,17 +180,18 @@ immutable(CommandQueueWorkSizes) calculateWorkSizes(
         cl_kernel kernel) {
     auto deviceId = getCommandQueueDeviceId(commandQueue);
     immutable preferredSize = getKernelPreferredWorkGroupSizeMultiple(kernel, deviceId);
+    immutable workGroupSize = max(getKernelWorkGroupSize(kernel, deviceId) / preferredSize * preferredSize, 1);
     immutable maxSizes = getDeviceMaxWorkItemSizes(deviceId);
     if(maxSizes[1] <= 1) {
-        return immutable(CommandQueueWorkSizes)([maxSizes[0], 1], [preferredSize, 1]);
+        return immutable(CommandQueueWorkSizes)([maxSizes[0], 1], [workGroupSize, 1]);
     }
 
     auto groups = cast(size_t) ceil(sqrt(cast(real) getDeviceMaxComputeUnits(deviceId)));
-    immutable groups0 = min(groups, max(maxSizes[0] / preferredSize, 1));
-    immutable groups1 = min(groups, max(maxSizes[1] / preferredSize, 1));
+    immutable groups0 = min(groups, max(maxSizes[0] / workGroupSize, 1));
+    immutable groups1 = min(groups, max(maxSizes[1] / workGroupSize, 1));
     return immutable(CommandQueueWorkSizes)(
-        [preferredSize * groups0, preferredSize * groups1],
-        [preferredSize, preferredSize]);
+        [workGroupSize * groups0, workGroupSize * groups1],
+        [workGroupSize, workGroupSize]);
 }
 
 /**
