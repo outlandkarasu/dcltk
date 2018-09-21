@@ -12,7 +12,7 @@ import dcltk.kernel :
 
 import std.algorithm : min, max;
 import std.exception : assumeUnique;
-import std.math : sqrt, ceil;
+import std.math : sqrt, ceil, floor;
 
 /**
  *  create in-order command queue.
@@ -186,12 +186,13 @@ immutable(CommandQueueWorkSizes) calculateWorkSizes(
         return immutable(CommandQueueWorkSizes)([maxSizes[0], 1], [workGroupSize, 1]);
     }
 
+    immutable workGroupSizeSqrt = max(cast(size_t) floor(sqrt(cast(real) workGroupSize)), 1);
     auto groups = cast(size_t) ceil(sqrt(cast(real) getDeviceMaxComputeUnits(deviceId)));
-    immutable groups0 = min(groups, max(maxSizes[0] / workGroupSize, 1));
-    immutable groups1 = min(groups, max(maxSizes[1] / workGroupSize, 1));
+    immutable groups0 = min(groups, max(maxSizes[0] / workGroupSizeSqrt, 1));
+    immutable groups1 = min(groups, max(maxSizes[1] / workGroupSizeSqrt, 1));
     return immutable(CommandQueueWorkSizes)(
-        [workGroupSize * groups0, workGroupSize * groups1],
-        [workGroupSize, workGroupSize]);
+        [workGroupSizeSqrt * groups0, workGroupSizeSqrt * groups1],
+        [workGroupSizeSqrt, workGroupSizeSqrt]);
 }
 
 /**
