@@ -51,9 +51,9 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 200,
-        COLS = 300,
-        RESULT_COLS = 400
+        ROWS = 100,
+        COLS = 200,
+        RESULT_COLS = 300
     }
 
     // initialize operand matrixes.
