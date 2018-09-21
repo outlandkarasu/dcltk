@@ -132,11 +132,11 @@ void main() {
 
                         barrier(CLK_LOCAL_MEM_FENCE);
                         localRow[localI * localCols + localJ] = lhs[(i + groupI) * cols + (k + localJ)];
-                        localCol[localI * localCols + localJ] = rhs[(k + localI) * resultCols + (j + groupJ)];
+                        localCol[localJ * localRows + localI] = rhs[(k + localI) * resultCols + (j + groupJ)];
                         barrier(CLK_LOCAL_MEM_FENCE);
 
 	                    for(size_t lk = 0; lk < localCols; ++lk) {
-	                        value += localRow[localI * localCols + lk] * localCol[lk * localCols + localJ];
+	                        value += localRow[localI * localCols + lk] * localCol[localJ * localRows + lk];
 	                    }
                     }
                     result[(i + groupI) * resultCols + (j + groupJ)] = value;
