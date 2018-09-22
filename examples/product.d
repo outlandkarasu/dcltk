@@ -58,7 +58,8 @@ void main() {
         COLS = 200,
         RESULT_COLS = 300,
         PRIVATE_ROWS = 2,
-        PRIVATE_COLS = 2
+        PRIVATE_COLS = 2,
+        WORK_GROUP_SIZE = 32
     }
 
     // initialize operand matrixes.
@@ -118,7 +119,8 @@ void main() {
                 __local float *localCol) {
             enum {
                 PRIVATE_ROWS = %d,
-                PRIVATE_COLS = %d
+                PRIVATE_COLS = %d,
+                WORK_GROUP_SIZE = %d,
             };
 
             const size_t groupI = get_global_id(0) * PRIVATE_ROWS;
@@ -146,8 +148,8 @@ void main() {
                     }
 
                     for(size_t k = 0; k < cols; k += localCols) {
-                        float privateRow[PRIVATE_ROWS][32];
-                        float privateCol[PRIVATE_COLS][32];
+                        float privateRow[PRIVATE_ROWS][WORK_GROUP_SIZE * PRIVATE_COLS];
+                        float privateCol[PRIVATE_COLS][WORK_GROUP_SIZE * PRIVATE_COLS];
 
                         barrier(CLK_LOCAL_MEM_FENCE);
                         for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
@@ -189,7 +191,7 @@ void main() {
                 }
             }
         }
-    `.format(PRIVATE_ROWS, PRIVATE_COLS));
+    `.format(PRIVATE_ROWS, PRIVATE_COLS, WORK_GROUP_SIZE));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
