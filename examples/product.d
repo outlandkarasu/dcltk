@@ -130,6 +130,7 @@ void main() {
             const size_t localRows = get_local_size(0) * PRIVATE_ROWS;
             const size_t localJ = get_local_id(1) * PRIVATE_COLS;
             const size_t localCols = get_local_size(1) * PRIVATE_COLS;
+            const size_t localCols4 = localCols / 4; // for vectorization
 
             for(size_t i = 0; i < rows; i += groupRows) {
                 const size_t globalRow = i + groupI;
@@ -145,6 +146,8 @@ void main() {
                     }
 
                     for(size_t k = 0; k < cols; k += localCols) {
+                        float privateRow[PRIVATE_ROWS][32];
+                        float privateCol[PRIVATE_COLS][32];
 
                         barrier(CLK_LOCAL_MEM_FENCE);
                         for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
@@ -155,23 +158,24 @@ void main() {
                         }
                         barrier(CLK_LOCAL_MEM_FENCE);
 
+	                    for(size_t lk = 0; lk < localCols; ++lk) {
+                            for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                                privateRow[pi][lk] = localRow[(localI + pi) * localCols + lk];
+                            }
+                            for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                                privateCol[pj][lk] = localCol[(localJ + pj) * localRows + lk];
+                            }
+                        }
+
                         for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
                             for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                                const size_t localCols4 = localCols / 4;
-                                const size_t localRows4 = localRows / 4;
-                                const size_t localRowOffset4 = (localI + pi) * localCols4;
-                                const size_t localColOffset4 = (localJ + pj) * localRows4;
-                                float v = 0.0f;
 	                            for(size_t lk = 0; lk < localCols4; ++lk) {
-                                    const float4 r = vload4(localRowOffset4 + lk, localRow);
-                                    const float4 c = vload4(localColOffset4 + lk, localCol);
+                                    const float4 r = vload4(lk, privateRow[pi]);
+                                    const float4 c = vload4(lk, privateCol[pj]);
                                     value[pi][pj] += dot(r, c);
 	                            }
 	                            for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
-                                    value[pi][pj] = mad(
-                                        localRow[(localI + pi) * localCols + lk],
-                                        localCol[(localJ + pj) * localRows + lk],
-                                        value[pi][pj]);
+                                    value[pi][pj] = mad(privateRow[pi][lk], privateCol[pj][lk], value[pi][pj]);
 	                            }
                             }
                         }
