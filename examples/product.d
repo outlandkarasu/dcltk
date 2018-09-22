@@ -3,6 +3,7 @@ import std.math : approxEqual, sqrt, floor, ceil;
 import std.parallelism : parallel;
 import std.random : uniform01;
 import std.range : iota;
+import std.string : format;
 import std.stdio : writefln;
 
 import cl = dcltk;
@@ -55,7 +56,9 @@ void main() {
     enum {
         ROWS = 100,
         COLS = 200,
-        RESULT_COLS = 300
+        RESULT_COLS = 300,
+        PRIVATE_ROWS = 2,
+        PRIVATE_COLS = 2
     }
 
     // initialize operand matrixes.
@@ -113,52 +116,76 @@ void main() {
                 uint resultCols,
                 __local float *localRow,
                 __local float *localCol) {
-            const size_t groupI = get_global_id(0);
-            const size_t groupRows = get_global_size(0);
-            const size_t groupJ = get_global_id(1);
-            const size_t groupCols = get_global_size(1);
+            enum {
+                PRIVATE_ROWS = %d,
+                PRIVATE_COLS = %d
+            };
 
-            const size_t localI = get_local_id(0);
-            const size_t localRows = get_local_size(0);
-            const size_t localJ = get_local_id(1);
-            const size_t localCols = get_local_size(1);
+            const size_t groupI = get_global_id(0) * PRIVATE_ROWS;
+            const size_t groupRows = get_global_size(0) * PRIVATE_ROWS;
+            const size_t groupJ = get_global_id(1) * PRIVATE_COLS;
+            const size_t groupCols = get_global_size(1) * PRIVATE_COLS;
 
-            const size_t localRowOffset = localI * localCols;
-            const size_t localColOffset = localJ * localRows;
-
-            // for vectorize.
-            const size_t localCols4 = localCols / 4;
-            const size_t localRowOffset4 = localRowOffset / 4;
-            const size_t localColOffset4 = localColOffset / 4;
+            const size_t localI = get_local_id(0) * PRIVATE_ROWS;
+            const size_t localRows = get_local_size(0) * PRIVATE_ROWS;
+            const size_t localJ = get_local_id(1) * PRIVATE_COLS;
+            const size_t localCols = get_local_size(1) * PRIVATE_COLS;
 
             for(size_t i = 0; i < rows; i += groupRows) {
                 const size_t globalRow = i + groupI;
-                const size_t globalRowOffset = globalRow * resultCols;
                 for(size_t j = 0; j < resultCols; j += groupCols) {
                     const size_t globalCol = j + groupJ;
-                    float value = 0.0f;
+
+                    // initialize private memory.
+                    __private float value[PRIVATE_ROWS][PRIVATE_COLS];
+                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                            value[pi][pj] = 0.0f;
+                        }
+                    }
 
                     for(size_t k = 0; k < cols; k += localCols) {
 
                         barrier(CLK_LOCAL_MEM_FENCE);
-                        localRow[localRowOffset + localJ] = lhs[globalRow * cols + (k + localJ)];
-                        localCol[localColOffset + localI] = rhs[(k + localI) * resultCols + globalCol];
+                        for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                            for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                                localRow[(localI + pi) * localCols + (localJ + pj)] = lhs[(globalRow + pi) * cols + (k + localJ + pj)];
+                                localCol[(localJ + pj) * localRows + (localI + pi)] = rhs[(k + localI + pi) * resultCols + (globalCol + pj)];
+                            }
+                        }
                         barrier(CLK_LOCAL_MEM_FENCE);
 
-	                    for(size_t lk = 0; lk < localCols4; ++lk) {
-                            const float4 r = vload4(localRowOffset4 + lk, localRow);
-                            const float4 c = vload4(localColOffset4 + lk, localCol);
-                            value += dot(r, c);
-	                    }
-	                    for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
-                            value = mad(localRow[localRowOffset + lk], localCol[localColOffset + lk], value);
-	                    }
+                        for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                            for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                                const size_t localCols4 = localCols / 4;
+                                const size_t localRows4 = localRows / 4;
+                                const size_t localRowOffset4 = (localI + pi) * localCols4;
+                                const size_t localColOffset4 = (localJ + pj) * localRows4;
+                                float v = 0.0f;
+	                            for(size_t lk = 0; lk < localCols4; ++lk) {
+                                    const float4 r = vload4(localRowOffset4 + lk, localRow);
+                                    const float4 c = vload4(localColOffset4 + lk, localCol);
+                                    value[pi][pj] += dot(r, c);
+	                            }
+	                            for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
+                                    value[pi][pj] = mad(
+                                        localRow[(localI + pi) * localCols + lk],
+                                        localCol[(localJ + pj) * localRows + lk],
+                                        value[pi][pj]);
+	                            }
+                            }
+                        }
                     }
-                    result[globalRowOffset + globalCol] = value;
+                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                        const size_t globalRowOffset = (globalRow + pi) * resultCols;
+                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                            result[globalRowOffset + (globalCol + pj)] = value[pi][pj];
+                        }
+                    }
                 }
             }
         }
-    `);
+    `.format(PRIVATE_ROWS, PRIVATE_COLS));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -169,10 +196,11 @@ void main() {
     writefln("workSizes: %s", workSizes);
 
     // calculate padded matrix size.
-    immutable groupSize = workSizes.localWorkSizes[0] * workSizes.localWorkSizes[1];
-    immutable workWidth = workSizes.globalWorkSizes[1];
-    immutable workHeight = workSizes.globalWorkSizes[0];
-    immutable totalWorkSize = workWidth * workHeight;
+    immutable groupSize =
+        (workSizes.localWorkSizes[0] * PRIVATE_COLS)
+        * (workSizes.localWorkSizes[1] * PRIVATE_ROWS);
+    immutable workWidth = workSizes.globalWorkSizes[1] * PRIVATE_COLS;
+    immutable workHeight = workSizes.globalWorkSizes[0] * PRIVATE_ROWS;
     immutable bufferCols = cast(uint)((COLS + workWidth - 1) / workWidth * workWidth);
     immutable bufferRows = cast(uint)((ROWS + workHeight - 1) / workHeight * workHeight);
     immutable bufferResultCols = cast(uint)((RESULT_COLS + workWidth - 1) / workWidth * workWidth);
