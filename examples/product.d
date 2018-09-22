@@ -54,9 +54,9 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 100,
-        COLS = 200,
-        RESULT_COLS = 300,
+        ROWS = 1000,
+        COLS = 2000,
+        RESULT_COLS = 3000,
         PRIVATE_ROWS = 2,
         PRIVATE_COLS = 2,
         WORK_GROUP_SIZE = 32
