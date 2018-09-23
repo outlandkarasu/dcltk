@@ -65,8 +65,8 @@ void main() {
         ROWS = 1000,
         COLS = 2000,
         RESULT_COLS = 3000,
-        PRIVATE_SIZE = 2,
-        WORK_GROUP_SIZE = 32
+        PRIVATE_SIZE = 4,
+        WORK_GROUP_SIZE = 8
     }
 
     // initialize operand matrixes.
@@ -199,15 +199,19 @@ void main() {
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    const workSizes = calculateWorkSizes(commandQueue, kernel, ROWS, RESULT_COLS, PRIVATE_SIZE);
-    writefln("workSizes: %s", workSizes);
+    immutable(size_t)[] globalWorkSizes = [
+        roundUp(ROWS, WORK_GROUP_SIZE * PRIVATE_SIZE) / PRIVATE_SIZE,
+        roundUp(RESULT_COLS, WORK_GROUP_SIZE * PRIVATE_SIZE) / PRIVATE_SIZE
+    ];
+    immutable(size_t)[] localWorkSizes = [WORK_GROUP_SIZE, WORK_GROUP_SIZE];
+    writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     // calculate padded matrix size.
-    immutable groupRows = workSizes.localWorkSizes[0] * PRIVATE_SIZE;
-    immutable groupCols = workSizes.localWorkSizes[1] * PRIVATE_SIZE;
+    immutable groupRows = localWorkSizes[0] * PRIVATE_SIZE;
+    immutable groupCols = localWorkSizes[1] * PRIVATE_SIZE;
     immutable groupSize = groupRows * groupCols;
-    immutable workWidth = workSizes.globalWorkSizes[1] * PRIVATE_SIZE;
-    immutable workHeight = workSizes.globalWorkSizes[0] * PRIVATE_SIZE;
+    immutable workWidth = globalWorkSizes[1] * PRIVATE_SIZE;
+    immutable workHeight = globalWorkSizes[0] * PRIVATE_SIZE;
     immutable bufferCols = cast(uint) roundUp(COLS, groupCols);
     immutable bufferRows = cast(uint) roundUp(ROWS, workHeight);
     immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, workWidth);
@@ -260,8 +264,8 @@ void main() {
         cl.enqueueKernel(
             commandQueue,
             kernel,
-            workSizes.globalWorkSizes,
-            workSizes.localWorkSizes);
+            globalWorkSizes,
+            localWorkSizes);
         cl.enqueueReadBuffer(
             commandQueue,
             resultBuffer,
@@ -289,28 +293,4 @@ void main() {
     foreach(i, e; cpuResult) {
         assert(approxEqual(e, gpuResult[i]));
     }
-}
-
-/// work item sizes
-struct CommandQueueWorkSizes {
-    size_t[] globalWorkSizes;
-    size_t[] localWorkSizes;
-}
-
-/// calculate work sizes.
-immutable(CommandQueueWorkSizes) calculateWorkSizes(
-        cl_command_queue commandQueue, cl_kernel kernel, size_t rows, size_t resultCols, size_t privateSize) {
-    auto deviceId = cl.getCommandQueueDeviceId(commandQueue);
-    immutable preferredSize = cl.getKernelPreferredWorkGroupSizeMultiple(kernel, deviceId);
-    immutable workGroupSize = max(roundDown(cl.getKernelWorkGroupSize(kernel, deviceId), preferredSize), 1);
-    immutable maxSizes = cl.getDeviceMaxWorkItemSizes(deviceId);
-    if(maxSizes[1] <= 1) {
-        return immutable(CommandQueueWorkSizes)([roundDown(maxSizes[0], preferredSize), 1], [preferredSize, 1]);
-    }
-
-    immutable workGroupSizeSqrt = max(cast(size_t) floor(sqrt(cast(real) workGroupSize)), 1);
-    immutable workGroupTotalSizeSqrt = workGroupSizeSqrt * privateSize;
-    return immutable(CommandQueueWorkSizes)(
-        [roundUp(rows, workGroupTotalSizeSqrt) / privateSize, roundUp(resultCols, workGroupTotalSizeSqrt) / privateSize],
-        [workGroupSizeSqrt, workGroupSizeSqrt]);
 }
