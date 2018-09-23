@@ -131,10 +131,10 @@ void main() {
                 PRIVATE_COLS = PRIVATE_SIZE,
             };
 
-            const size_t groupI = get_global_id(0) * PRIVATE_ROWS;
-            const size_t groupRows = get_global_size(0) * PRIVATE_ROWS;
-            const size_t groupJ = get_global_id(1) * PRIVATE_COLS;
-            const size_t groupCols = get_global_size(1) * PRIVATE_COLS;
+            const size_t globalI = get_global_id(0) * PRIVATE_ROWS;
+            const size_t globalRows = get_global_size(0) * PRIVATE_ROWS;
+            const size_t globalJ = get_global_id(1) * PRIVATE_COLS;
+            const size_t globalCols = get_global_size(1) * PRIVATE_COLS;
 
             const size_t localI = get_local_id(0) * PRIVATE_ROWS;
             const size_t localRows = get_local_size(0) * PRIVATE_ROWS;
@@ -142,59 +142,53 @@ void main() {
             const size_t localCols = get_local_size(1) * PRIVATE_COLS;
             const size_t localCols4 = localCols / 4; // for vectorization
 
-            for(size_t i = 0; i < rows; i += groupRows) {
-                const size_t globalRow = i + groupI;
-                for(size_t j = 0; j < resultCols; j += groupCols) {
-                    const size_t globalCol = j + groupJ;
-                    float value[PRIVATE_ROWS][PRIVATE_COLS];
+            float value[PRIVATE_ROWS][PRIVATE_COLS];
 
-                    // initialize private memory.
-                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                            value[pi][pj] = 0.0f;
+            // initialize private memory.
+            for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                    value[pi][pj] = 0.0f;
+                }
+            }
+
+            for(size_t k = 0; k < cols; k += localCols) {
+                barrier(CLK_LOCAL_MEM_FENCE);
+                for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                    for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                        localRow[(localI + pi) * localCols + (localJ + pj)] = lhs[(globalI + pi) * cols + (k + localJ + pj)];
+                        localCol[(localJ + pj) * localRows + (localI + pi)] = rhs[(k + localI + pi) * resultCols + (globalJ + pj)];
+                    }
+                }
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                float privateCols[PRIVATE_COLS][WORK_GROUP_SIZE * PRIVATE_COLS];
+                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                    for(size_t lk = 0; lk < localCols; ++lk) {
+                        privateCols[pj][lk] = localCol[(localJ + pj) * localRows + lk];
+                    }
+                }
+
+                for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                    float privateRow[WORK_GROUP_SIZE * PRIVATE_COLS];
+                    for(size_t lk = 0; lk < localCols; ++lk) {
+                        privateRow[lk] = localRow[(localI + pi) * localCols + lk];
+                    }
+                    for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                        for(size_t lk = 0; lk < localCols4; ++lk) {
+                            const float4 r = vload4(lk, privateRow);
+                            const float4 c = vload4(lk, privateCols[pj]);
+                            value[pi][pj] += dot(r, c);
+                        }
+                        for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
+                            value[pi][pj] = mad(privateRow[lk], privateCols[pj][lk], value[pi][pj]);
                         }
                     }
-
-                    for(size_t k = 0; k < cols; k += localCols) {
-                        barrier(CLK_LOCAL_MEM_FENCE);
-                        for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                            for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                                localRow[(localI + pi) * localCols + (localJ + pj)] = lhs[(globalRow + pi) * cols + (k + localJ + pj)];
-                                localCol[(localJ + pj) * localRows + (localI + pi)] = rhs[(k + localI + pi) * resultCols + (globalCol + pj)];
-                            }
-                        }
-                        barrier(CLK_LOCAL_MEM_FENCE);
-
-                        float privateCols[PRIVATE_COLS][WORK_GROUP_SIZE * PRIVATE_COLS];
-                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-	                        for(size_t lk = 0; lk < localCols; ++lk) {
-	                            privateCols[pj][lk] = localCol[(localJ + pj) * localRows + lk];
-	                        }
-                        }
-
-                        for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                            float privateRow[WORK_GROUP_SIZE * PRIVATE_COLS];
-                            for(size_t lk = 0; lk < localCols; ++lk) {
-                                privateRow[lk] = localRow[(localI + pi) * localCols + lk];
-                            }
-                            for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-	                            for(size_t lk = 0; lk < localCols4; ++lk) {
-                                    const float4 r = vload4(lk, privateRow);
-                                    const float4 c = vload4(lk, privateCols[pj]);
-                                    value[pi][pj] += dot(r, c);
-	                            }
-	                            for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
-                                    value[pi][pj] = mad(privateRow[lk], privateCols[pj][lk], value[pi][pj]);
-	                            }
-                            }
-                        }
-                    }
-                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const size_t globalRowOffset = (globalRow + pi) * resultCols + globalCol;
-                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                            result[globalRowOffset + pj] = value[pi][pj];
-                        }
-                    }
+                }
+            }
+            for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                const size_t globalRowOffset = (globalI + pi) * resultCols + globalJ;
+                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                    result[globalRowOffset + pj] = value[pi][pj];
                 }
             }
         }
