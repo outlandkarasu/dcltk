@@ -1,3 +1,4 @@
+import std.algorithm : min, max;
 import std.datetime.stopwatch : benchmark;
 import std.math : approxEqual, sqrt, floor, ceil;
 import std.parallelism : parallel;
@@ -7,10 +8,17 @@ import std.string : format;
 import std.stdio : writefln;
 
 import cl = dcltk;
-import derelict.opencl.cl : cl_event;
+import derelict.opencl.cl : cl_event, cl_command_queue, cl_kernel;
+
+private T roundUp(T)(T value, T unit) {
+    return value + (unit - (value % unit));
+}
+private T roundDown(T)(T value, T unit) {
+    return value - (value % unit);
+}
 
 /// matrix product by CPU.
-void productCpu(
+private void productCpu(
         const(float)[] lhs,
         const(float)[] rhs,
         float[] result,
@@ -57,8 +65,7 @@ void main() {
         ROWS = 1000,
         COLS = 2000,
         RESULT_COLS = 3000,
-        PRIVATE_ROWS = 2,
-        PRIVATE_COLS = 2,
+        PRIVATE_SIZE = 2,
         WORK_GROUP_SIZE = 32
     }
 
@@ -118,9 +125,10 @@ void main() {
                 __local float *localRow,
                 __local float *localCol) {
             enum {
-                PRIVATE_ROWS = %d,
-                PRIVATE_COLS = %d,
+                PRIVATE_SIZE = %d,
                 WORK_GROUP_SIZE = %d,
+                PRIVATE_ROWS = PRIVATE_SIZE,
+                PRIVATE_COLS = PRIVATE_SIZE,
             };
 
             const size_t groupI = get_global_id(0) * PRIVATE_ROWS;
@@ -190,25 +198,25 @@ void main() {
                 }
             }
         }
-    `.format(PRIVATE_ROWS, PRIVATE_COLS, WORK_GROUP_SIZE));
+    `.format(PRIVATE_SIZE, WORK_GROUP_SIZE));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    const workSizes = cl.calculateWorkSizes(commandQueue, kernel);
+    const workSizes = calculateWorkSizes(commandQueue, kernel, ROWS, RESULT_COLS, PRIVATE_SIZE);
     writefln("workSizes: %s", workSizes);
 
     // calculate padded matrix size.
-    immutable groupSize =
-        (workSizes.localWorkSizes[0] * PRIVATE_COLS)
-        * (workSizes.localWorkSizes[1] * PRIVATE_ROWS);
-    immutable workWidth = workSizes.globalWorkSizes[1] * PRIVATE_COLS;
-    immutable workHeight = workSizes.globalWorkSizes[0] * PRIVATE_ROWS;
-    immutable bufferCols = cast(uint)((COLS + workWidth - 1) / workWidth * workWidth);
-    immutable bufferRows = cast(uint)((ROWS + workHeight - 1) / workHeight * workHeight);
-    immutable bufferResultCols = cast(uint)((RESULT_COLS + workWidth - 1) / workWidth * workWidth);
+    immutable groupRows = workSizes.localWorkSizes[0] * PRIVATE_SIZE;
+    immutable groupCols = workSizes.localWorkSizes[1] * PRIVATE_SIZE;
+    immutable groupSize = groupRows * groupCols;
+    immutable workWidth = workSizes.globalWorkSizes[1] * PRIVATE_SIZE;
+    immutable workHeight = workSizes.globalWorkSizes[0] * PRIVATE_SIZE;
+    immutable bufferCols = cast(uint) roundUp(COLS, groupCols);
+    immutable bufferRows = cast(uint) roundUp(ROWS, workHeight);
+    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, workWidth);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
@@ -276,6 +284,7 @@ void main() {
     // benchmark CPU and GPU.
     immutable cpuMsecs = benchmark!(() => productCpu(
                 lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
+    //immutable cpuMsecs = 0;
     immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
     writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
 
@@ -288,3 +297,26 @@ void main() {
     }
 }
 
+/// work item sizes
+struct CommandQueueWorkSizes {
+    size_t[] globalWorkSizes;
+    size_t[] localWorkSizes;
+}
+
+/// calculate work sizes.
+immutable(CommandQueueWorkSizes) calculateWorkSizes(
+        cl_command_queue commandQueue, cl_kernel kernel, size_t rows, size_t resultCols, size_t privateSize) {
+    auto deviceId = cl.getCommandQueueDeviceId(commandQueue);
+    immutable preferredSize = cl.getKernelPreferredWorkGroupSizeMultiple(kernel, deviceId);
+    immutable workGroupSize = max(roundDown(cl.getKernelWorkGroupSize(kernel, deviceId), preferredSize), 1);
+    immutable maxSizes = cl.getDeviceMaxWorkItemSizes(deviceId);
+    if(maxSizes[1] <= 1) {
+        return immutable(CommandQueueWorkSizes)([roundDown(maxSizes[0], preferredSize), 1], [preferredSize, 1]);
+    }
+
+    immutable workGroupSizeSqrt = max(cast(size_t) floor(sqrt(cast(real) workGroupSize)), 1);
+    immutable workGroupTotalSizeSqrt = workGroupSizeSqrt * privateSize;
+    return immutable(CommandQueueWorkSizes)(
+        [roundUp(rows, workGroupTotalSizeSqrt) / privateSize, roundUp(resultCols, workGroupTotalSizeSqrt) / privateSize],
+        [workGroupSizeSqrt, workGroupSizeSqrt]);
+}
