@@ -65,7 +65,7 @@ void main() {
         ROWS = 1000,
         COLS = 2000,
         RESULT_COLS = 3000,
-        PRIVATE_SIZE = 4,
+        PRIVATE_SIZE = 8,
         WORK_GROUP_SIZE = 8
     }
 
@@ -161,26 +161,15 @@ void main() {
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
-                float privateCols[PRIVATE_COLS][WORK_GROUP_SIZE * PRIVATE_COLS];
-                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                    for(size_t lk = 0; lk < localCols; ++lk) {
-                        privateCols[pj][lk] = localCol[(localJ + pj) * localRows + lk];
-                    }
-                }
-
-                for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                    float privateRow[WORK_GROUP_SIZE * PRIVATE_COLS];
-                    for(size_t lk = 0; lk < localCols; ++lk) {
-                        privateRow[lk] = localRow[(localI + pi) * localCols + lk];
-                    }
+                for(size_t lk = 0; lk < localCols; ++lk) {
+                    float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        for(size_t lk = 0; lk < localCols4; ++lk) {
-                            const float4 r = vload4(lk, privateRow);
-                            const float4 c = vload4(lk, privateCols[pj]);
-                            value[pi][pj] += dot(r, c);
-                        }
-                        for(size_t lk = (localCols4 * 4); lk < localCols; ++lk) {
-                            value[pi][pj] = mad(privateRow[lk], privateCols[pj][lk], value[pi][pj]);
+                        privateCols[pj] = localCol[(localJ + pj) * localRows + lk];
+                    }
+                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                        const float privateRow = localRow[(localI + pi) * localCols + lk];
+                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                            value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
                     }
                 }
