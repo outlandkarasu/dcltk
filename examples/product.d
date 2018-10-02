@@ -67,7 +67,8 @@ void main() {
         RESULT_COLS = 3000,
         PRIVATE_SIZE = 4,
         WORK_GROUP_SIZE = 8,
-        BATCH_SIZE_K = 8
+        BATCH_SIZE_K = 8,
+        LOCAL_MEMORY_COLS = BATCH_SIZE_K + 2
     }
 
     // initialize operand matrixes.
@@ -130,7 +131,8 @@ void main() {
                 WORK_GROUP_SIZE = %d,
                 PRIVATE_ROWS = PRIVATE_SIZE,
                 PRIVATE_COLS = PRIVATE_SIZE,
-                BATCH_SIZE_K = %d
+                BATCH_SIZE_K = %d,
+                LOCAL_MEMORY_COLS = %d
             };
 
             const size_t globalI = get_global_id(0) * PRIVATE_ROWS;
@@ -165,18 +167,18 @@ void main() {
                     const size_t copyRowJ = (offset + localId) %% BATCH_SIZE_K;
                     const size_t copyColI = ((offset + localId) / localCols) %% BATCH_SIZE_K;
                     const size_t copyColJ = (offset + localId) %% localCols;
-                    localRow[copyRowI * BATCH_SIZE_K + copyRowJ] = lhs[(groupRow + copyRowI) * cols + k + copyRowJ];
-                    localCol[copyColJ * BATCH_SIZE_K + copyColI] = rhs[(k + copyColI) * resultCols + (groupCol + copyColJ)];
+                    localRow[copyRowI * LOCAL_MEMORY_COLS + copyRowJ] = lhs[(groupRow + copyRowI) * cols + k + copyRowJ];
+                    localCol[copyColJ * LOCAL_MEMORY_COLS + copyColI] = rhs[(k + copyColI) * resultCols + (groupCol + copyColJ)];
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
                 for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localCol[(localJ + pj) * BATCH_SIZE_K + lk];
+                        privateCols[pj] = localCol[(localJ + pj) * LOCAL_MEMORY_COLS + lk];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localRow[(localI + pi) * BATCH_SIZE_K + lk];
+                        const float privateRow = localRow[(localI + pi) * LOCAL_MEMORY_COLS + lk];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
@@ -190,7 +192,7 @@ void main() {
                 }
             }
         }
-    `.format(PRIVATE_SIZE, WORK_GROUP_SIZE, BATCH_SIZE_K));
+    `.format(PRIVATE_SIZE, WORK_GROUP_SIZE, BATCH_SIZE_K, LOCAL_MEMORY_COLS));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -254,8 +256,8 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferRows);
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
-    cl.allocateLocalMemory(kernel, 6, (groupRows * BATCH_SIZE_K) * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, (BATCH_SIZE_K * groupCols) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 6, (groupRows * LOCAL_MEMORY_COLS) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, (LOCAL_MEMORY_COLS * groupCols) * float.sizeof);
 
     void productGpu() {
         cl_event event;
