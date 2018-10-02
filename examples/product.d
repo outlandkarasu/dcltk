@@ -67,7 +67,7 @@ void main() {
         RESULT_COLS = 3000,
         PRIVATE_SIZE = 4,
         WORK_GROUP_SIZE = 8,
-        BATCH_SIZE_K = 8,
+        BATCH_SIZE_K = 16,
         LOCAL_MEMORY_COLS = BATCH_SIZE_K + 2
     }
 
@@ -146,6 +146,7 @@ void main() {
             const size_t localCols = get_local_size(1) * PRIVATE_COLS;
 
             const size_t localId = get_local_id(0) * get_local_size(0) + get_local_id(1);
+            const size_t localBatchOffset = localId * 2;
             const size_t localWorkSize = get_local_size(0) * get_local_size(1);
             const size_t localCopySize = localRows * localCols;
             const size_t groupRow = get_group_id(0) * get_local_size(0) * PRIVATE_ROWS;
@@ -172,13 +173,14 @@ void main() {
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
-                for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
+                for(size_t lk = localBatchOffset; lk < (BATCH_SIZE_K + localBatchOffset); ++lk) {
+                    const size_t lkOffset = lk %% BATCH_SIZE_K;
                     float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localCol[(localJ + pj) * LOCAL_MEMORY_COLS + lk];
+                        privateCols[pj] = localCol[(localJ + pj) * LOCAL_MEMORY_COLS + lkOffset];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localRow[(localI + pi) * LOCAL_MEMORY_COLS + lk];
+                        const float privateRow = localRow[(localI + pi) * LOCAL_MEMORY_COLS + lkOffset];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
