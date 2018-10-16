@@ -164,12 +164,16 @@ void main() {
             for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
                 barrier(CLK_LOCAL_MEM_FENCE);
                 for(size_t offset = 0; offset < localCopySize; offset += localWorkSize) {
-                    const size_t copyRowI = ((offset + localId) / BATCH_SIZE_K) %% localRows;
+                    const size_t copyRowI = ((offset + localId) / BATCH_SIZE_K);
                     const size_t copyRowJ = (offset + localId) %% BATCH_SIZE_K;
-                    const size_t copyColI = ((offset + localId) / localCols) %% BATCH_SIZE_K;
+                    const size_t copyColI = ((offset + localId) / localCols);
                     const size_t copyColJ = (offset + localId) %% localCols;
-                    localRow[copyRowI * LOCAL_MEMORY_COLS + copyRowJ] = lhs[(groupRow + copyRowI) * cols + k + copyRowJ];
-                    localCol[copyColJ * LOCAL_MEMORY_COLS + copyColI] = rhs[(k + copyColI) * resultCols + (groupCol + copyColJ)];
+                    if(copyRowI < localRows) {
+                        localRow[copyRowI * LOCAL_MEMORY_COLS + copyRowJ] = lhs[(groupRow + copyRowI) * cols + k + copyRowJ];
+                    }
+                    if(copyColI < BATCH_SIZE_K) {
+                        localCol[copyColJ * LOCAL_MEMORY_COLS + copyColI] = rhs[(k + copyColI) * resultCols + (groupCol + copyColJ)];
+                    }
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -282,9 +286,12 @@ void main() {
     }
 
     // benchmark CPU and GPU.
-    immutable cpuMsecs = benchmark!(() => productCpu(
-                lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
-    //immutable cpuMsecs = 0;
+    version(DcltkWithCpuTest) {
+        immutable cpuMsecs = benchmark!(() => productCpu(
+            lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
+    } else {
+        immutable cpuMsecs = 0;
+    }
     immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
     writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
 
@@ -292,7 +299,9 @@ void main() {
     // writefln("%s", gpuResult);
 
     // check result values.
-    foreach(i, e; cpuResult) {
-        assert(approxEqual(e, gpuResult[i]));
+    version(DcltkWithCpuTest) {
+        foreach(i, e; cpuResult) {
+            assert(approxEqual(e, gpuResult[i]));
+        }
     }
 }
