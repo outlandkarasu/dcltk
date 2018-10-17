@@ -65,10 +65,10 @@ void main() {
         ROWS = 1000,
         COLS = 2000,
         RESULT_COLS = 3000,
-        PRIVATE_SIZE = 4,
+        PRIVATE_SIZE = 8,
         WORK_GROUP_SIZE = 8,
-        BATCH_SIZE_K = 16,
-        LOCAL_MEMORY_COLS = BATCH_SIZE_K + 2
+        BATCH_SIZE = WORK_GROUP_SIZE * PRIVATE_SIZE,
+        BATCH_SIZE_K = 16
     }
 
     // initialize operand matrixes.
@@ -124,15 +124,13 @@ void main() {
                 uint rows,
                 uint cols,
                 uint resultCols,
-                __local float *localRow,
-                __local float *localCol) {
+                __local float *localLhs,
+                __local float *localRhs) {
             enum {
                 PRIVATE_SIZE = %d,
-                WORK_GROUP_SIZE = %d,
                 PRIVATE_ROWS = PRIVATE_SIZE,
                 PRIVATE_COLS = PRIVATE_SIZE,
-                BATCH_SIZE_K = %d,
-                LOCAL_MEMORY_COLS = %d
+                BATCH_SIZE_K = %d
             };
 
             const size_t globalI = get_global_id(0) * PRIVATE_ROWS;
@@ -145,12 +143,11 @@ void main() {
             const size_t localJ = get_local_id(1) * PRIVATE_COLS;
             const size_t localCols = get_local_size(1) * PRIVATE_COLS;
 
+            const size_t localSize = get_local_size(0) * get_local_size(1);
+            const size_t localCopyCount = localRows * BATCH_SIZE_K / localSize;
             const size_t localId = get_local_id(0) * get_local_size(0) + get_local_id(1);
-            const size_t localBatchOffset = localId * 2;
-            const size_t localWorkSize = get_local_size(0) * get_local_size(1);
-            const size_t localCopySize = localRows * localCols;
-            const size_t groupRow = get_group_id(0) * get_local_size(0) * PRIVATE_ROWS;
-            const size_t groupCol = get_group_id(1) * get_local_size(1) * PRIVATE_COLS;
+            const size_t groupI = get_group_id(0) * localRows;
+            const size_t groupJ = get_group_id(1) * localCols;
 
             float value[PRIVATE_ROWS][PRIVATE_COLS];
 
@@ -163,28 +160,24 @@ void main() {
 
             for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
                 barrier(CLK_LOCAL_MEM_FENCE);
-                for(size_t offset = 0; offset < localCopySize; offset += localWorkSize) {
-                    const size_t copyRowI = ((offset + localId) / BATCH_SIZE_K);
-                    const size_t copyRowJ = (offset + localId) %% BATCH_SIZE_K;
-                    const size_t copyColI = ((offset + localId) / localCols);
-                    const size_t copyColJ = (offset + localId) %% localCols;
-                    if(copyRowI < localRows) {
-                        localRow[copyRowI * LOCAL_MEMORY_COLS + copyRowJ] = lhs[(groupRow + copyRowI) * cols + k + copyRowJ];
-                    }
-                    if(copyColI < BATCH_SIZE_K) {
-                        localCol[copyColJ * LOCAL_MEMORY_COLS + copyColI] = rhs[(k + copyColI) * resultCols + (groupCol + copyColJ)];
-                    }
+                for(size_t copyOffset = 0; copyOffset < localCopyCount; ++copyOffset) {
+                    const size_t copyOffsetId = (copyOffset * localSize) + localId;
+                    const size_t copyLhsI = copyOffsetId / BATCH_SIZE_K;
+                    const size_t copyLhsJ = copyOffsetId %% BATCH_SIZE_K;
+                    const size_t copyRhsI = copyOffsetId / localRows;
+                    const size_t copyRhsJ = copyOffsetId %% localRows;
+                    localLhs[copyLhsI * BATCH_SIZE_K + copyLhsJ] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
+                    localRhs[copyRhsI * localRows + copyRhsJ] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
-                for(size_t lk = localBatchOffset; lk < (BATCH_SIZE_K + localBatchOffset); ++lk) {
-                    const size_t lkOffset = lk %% BATCH_SIZE_K;
+                for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localCol[(localJ + pj) * LOCAL_MEMORY_COLS + lkOffset];
+                        privateCols[pj] = localRhs[lk * localRows + (localJ + pj)];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localRow[(localI + pi) * LOCAL_MEMORY_COLS + lkOffset];
+                        const float privateRow = localLhs[(localI + pi) * BATCH_SIZE_K + lk];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
@@ -198,7 +191,7 @@ void main() {
                 }
             }
         }
-    `.format(PRIVATE_SIZE, WORK_GROUP_SIZE, BATCH_SIZE_K, LOCAL_MEMORY_COLS));
+    `.format(PRIVATE_SIZE, BATCH_SIZE_K));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -206,21 +199,16 @@ void main() {
     scope(exit) cl.releaseKernel(kernel);
 
     immutable(size_t)[] globalWorkSizes = [
-        roundUp(ROWS, WORK_GROUP_SIZE * PRIVATE_SIZE) / PRIVATE_SIZE,
-        roundUp(RESULT_COLS, WORK_GROUP_SIZE * PRIVATE_SIZE) / PRIVATE_SIZE
+        roundUp(ROWS, BATCH_SIZE) / PRIVATE_SIZE,
+        roundUp(RESULT_COLS, BATCH_SIZE) / PRIVATE_SIZE
     ];
     immutable(size_t)[] localWorkSizes = [WORK_GROUP_SIZE, WORK_GROUP_SIZE];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     // calculate padded matrix size.
-    immutable groupRows = localWorkSizes[0] * PRIVATE_SIZE;
-    immutable groupCols = localWorkSizes[1] * PRIVATE_SIZE;
-    immutable groupSize = groupRows * groupCols;
-    immutable workWidth = globalWorkSizes[1] * PRIVATE_SIZE;
-    immutable workHeight = globalWorkSizes[0] * PRIVATE_SIZE;
-    immutable bufferCols = cast(uint) roundUp(COLS, groupCols);
-    immutable bufferRows = cast(uint) roundUp(ROWS, workHeight);
-    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, workWidth);
+    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_SIZE);
+    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_SIZE);
+    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_SIZE);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
@@ -262,8 +250,8 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferRows);
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
-    cl.allocateLocalMemory(kernel, 6, (groupRows * LOCAL_MEMORY_COLS) * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, (LOCAL_MEMORY_COLS * groupCols) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 6, (BATCH_SIZE * BATCH_SIZE_K) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, (BATCH_SIZE_K * BATCH_SIZE) * float.sizeof);
 
     void productGpu() {
         cl_event event;
