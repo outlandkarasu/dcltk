@@ -68,7 +68,7 @@ void main() {
         PRIVATE_SIZE = 8,
         WORK_GROUP_SIZE = 8,
         BATCH_SIZE = WORK_GROUP_SIZE * PRIVATE_SIZE,
-        BATCH_SIZE_K = 16
+        BATCH_SIZE_K = 8
     }
 
     // initialize operand matrixes.
@@ -250,7 +250,7 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferRows);
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
-    cl.allocateLocalMemory(kernel, 6, (BATCH_SIZE * BATCH_SIZE_K) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 6, (BATCH_SIZE_K * BATCH_SIZE) * float.sizeof);
     cl.allocateLocalMemory(kernel, 7, (BATCH_SIZE_K * BATCH_SIZE) * float.sizeof);
 
     void productGpu() {
