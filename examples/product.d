@@ -11,7 +11,7 @@ import cl = dcltk;
 import derelict.opencl.cl : cl_event, cl_command_queue, cl_kernel;
 
 private T roundUp(T)(T value, T unit) {
-    return value + (unit - (value % unit));
+    return (value % unit) == 0 ? value : value + (unit - (value % unit));
 }
 private T roundDown(T)(T value, T unit) {
     return value - (value % unit);
