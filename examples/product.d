@@ -160,13 +160,13 @@ void main() {
 
             for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
                 barrier(CLK_LOCAL_MEM_FENCE);
-                for(size_t copyOffset = 0; copyOffset < localCopyCount; ++copyOffset) {
-                    const size_t copyOffsetId = (copyOffset * localSize) + localId;
-                    const size_t copyLhsI = copyOffsetId / BATCH_SIZE_K;
-                    const size_t copyLhsJ = copyOffsetId %% BATCH_SIZE_K;
-                    const size_t copyRhsI = copyOffsetId / localRows;
-                    const size_t copyRhsJ = copyOffsetId %% localRows;
-                    localLhs[copyLhsI * BATCH_SIZE_K + copyLhsJ] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
+                for(size_t offset = 0; offset < localCopyCount; ++offset) {
+                    const size_t id = (offset * localSize) + localId;
+                    const size_t copyLhsI = id / BATCH_SIZE_K;
+                    const size_t copyLhsJ = id %% BATCH_SIZE_K;
+                    const size_t copyRhsI = id / localRows;
+                    const size_t copyRhsJ = id %% localRows;
+                    localLhs[copyLhsJ * localRows + copyLhsI] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
                     localRhs[copyRhsI * localRows + copyRhsJ] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
@@ -177,7 +177,7 @@ void main() {
                         privateCols[pj] = localRhs[lk * localRows + (localJ + pj)];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localLhs[(localI + pi) * BATCH_SIZE_K + lk];
+                        const float privateRow = localLhs[lk * localRows + (localI + pi)];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
