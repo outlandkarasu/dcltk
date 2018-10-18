@@ -68,7 +68,7 @@ void main() {
         PRIVATE_SIZE = 8,
         WORK_GROUP_SIZE = 8,
         BATCH_SIZE = WORK_GROUP_SIZE * PRIVATE_SIZE,
-        BATCH_SIZE_K = 8
+        BATCH_SIZE_K = 16
     }
 
     // initialize operand matrixes.
@@ -161,18 +161,18 @@ void main() {
                     const size_t copyLhsJ = id %% BATCH_SIZE_K;
                     const size_t copyRhsI = id / localRows;
                     const size_t copyRhsJ = id %% localRows;
-                    localLhs[copyLhsJ * localRows + copyLhsI] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
-                    localRhs[copyRhsI * localRows + copyRhsJ] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
+                    localLhs[copyLhsI * BATCH_SIZE_K + copyLhsJ] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
+                    localRhs[copyRhsJ * BATCH_SIZE_K + copyRhsI] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
                 for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localRhs[lk * localRows + (pj * PRIVATE_COLS + localJ)];
+                        privateCols[pj] = localRhs[(pj * PRIVATE_COLS + localJ) * BATCH_SIZE_K + lk];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localLhs[lk * localRows + (pi * PRIVATE_ROWS + localI)];
+                        const float privateRow = localLhs[(pi * PRIVATE_ROWS + localI) * BATCH_SIZE_K + lk];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
