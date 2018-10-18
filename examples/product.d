@@ -68,7 +68,7 @@ void main() {
         PRIVATE_SIZE = 8,
         WORK_GROUP_SIZE = 8,
         BATCH_SIZE = WORK_GROUP_SIZE * PRIVATE_SIZE,
-        BATCH_SIZE_K = 16
+        BATCH_SIZE_K = 8
     }
 
     // initialize operand matrixes.
