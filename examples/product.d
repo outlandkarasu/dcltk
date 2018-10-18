@@ -133,14 +133,9 @@ void main() {
                 BATCH_SIZE_K = %d
             };
 
-            const size_t globalI = get_global_id(0) * PRIVATE_ROWS;
-            const size_t globalRows = get_global_size(0) * PRIVATE_ROWS;
-            const size_t globalJ = get_global_id(1) * PRIVATE_COLS;
-            const size_t globalCols = get_global_size(1) * PRIVATE_COLS;
-
-            const size_t localI = get_local_id(0) * PRIVATE_ROWS;
+            const size_t localI = get_local_id(0);
             const size_t localRows = get_local_size(0) * PRIVATE_ROWS;
-            const size_t localJ = get_local_id(1) * PRIVATE_COLS;
+            const size_t localJ = get_local_id(1);
             const size_t localCols = get_local_size(1) * PRIVATE_COLS;
 
             const size_t localSize = get_local_size(0) * get_local_size(1);
@@ -174,10 +169,10 @@ void main() {
                 for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
                     for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localRhs[lk * localRows + (localJ + pj)];
+                        privateCols[pj] = localRhs[lk * localRows + (pj * PRIVATE_COLS + localJ)];
                     }
                     for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localLhs[lk * localRows + (localI + pi)];
+                        const float privateRow = localLhs[lk * localRows + (pi * PRIVATE_ROWS + localI)];
                         for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
@@ -185,9 +180,9 @@ void main() {
                 }
             }
             for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                const size_t globalRowOffset = (globalI + pi) * resultCols + globalJ;
+                const size_t globalRowOffset = (pi * PRIVATE_ROWS + groupI + localI) * resultCols;
                 for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
-                    result[globalRowOffset + pj] = value[pi][pj];
+                    result[globalRowOffset + (pj * PRIVATE_COLS + groupJ + localJ)] = value[pi][pj];
                 }
             }
         }
