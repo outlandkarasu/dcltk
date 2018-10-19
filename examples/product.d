@@ -127,22 +127,24 @@ void main() {
                 __local float *localLhs,
                 __local float *localRhs) {
             enum {
+                WORK_GROUP_SIZE = %d,
+                BATCH_SIZE = %d,
                 PRIVATE_SIZE = %d,
+                BATCH_SIZE_K = %d,
                 PRIVATE_ROWS = PRIVATE_SIZE,
                 PRIVATE_COLS = PRIVATE_SIZE,
-                BATCH_SIZE_K = %d
+                LOCAL_ROWS = BATCH_SIZE,
+                LOCAL_COLS = BATCH_SIZE,
+                LOCAL_SIZE = WORK_GROUP_SIZE * WORK_GROUP_SIZE,
+                LOCAL_COPY_COUNT = LOCAL_ROWS * BATCH_SIZE_K / LOCAL_SIZE
             };
 
             const size_t localI = get_local_id(0);
-            const size_t localRows = get_local_size(0) * PRIVATE_ROWS;
             const size_t localJ = get_local_id(1);
-            const size_t localCols = get_local_size(1) * PRIVATE_COLS;
 
-            const size_t localSize = get_local_size(0) * get_local_size(1);
-            const size_t localCopyCount = localRows * BATCH_SIZE_K / localSize;
-            const size_t localId = get_local_id(0) * get_local_size(0) + get_local_id(1);
-            const size_t groupI = get_group_id(0) * localRows;
-            const size_t groupJ = get_group_id(1) * localCols;
+            const size_t localId = get_local_id(0) * WORK_GROUP_SIZE + get_local_id(1);
+            const size_t groupI = get_group_id(0) * LOCAL_ROWS;
+            const size_t groupJ = get_group_id(1) * LOCAL_COLS;
 
             float value[PRIVATE_ROWS][PRIVATE_COLS];
 
@@ -155,12 +157,12 @@ void main() {
 
             for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
                 barrier(CLK_LOCAL_MEM_FENCE);
-                for(size_t offset = 0; offset < localCopyCount; ++offset) {
-                    const size_t id = (offset * localSize) + localId;
+                for(size_t offset = 0; offset < LOCAL_COPY_COUNT; ++offset) {
+                    const size_t id = (offset * LOCAL_SIZE) + localId;
                     const size_t copyLhsI = id / BATCH_SIZE_K;
                     const size_t copyLhsJ = id %% BATCH_SIZE_K;
-                    const size_t copyRhsI = id / localRows;
-                    const size_t copyRhsJ = id %% localRows;
+                    const size_t copyRhsI = id / LOCAL_ROWS;
+                    const size_t copyRhsJ = id %% LOCAL_ROWS;
                     localLhs[copyLhsI * BATCH_SIZE_K + copyLhsJ] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
                     localRhs[copyRhsJ * BATCH_SIZE_K + copyRhsI] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
                 }
@@ -186,7 +188,7 @@ void main() {
                 }
             }
         }
-    `.format(PRIVATE_SIZE, BATCH_SIZE_K));
+    `.format(WORK_GROUP_SIZE, BATCH_SIZE, PRIVATE_SIZE, BATCH_SIZE_K));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
