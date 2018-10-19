@@ -121,9 +121,9 @@ void main() {
                 __global const float *lhs,
                 __global const float *rhs,
                 __global float *result,
-                uint rows,
-                uint cols,
-                uint resultCols) {
+                int rows,
+                int cols,
+                int resultCols) {
             enum {
                 WORK_GROUP_SIZE = %d,
                 BATCH_SIZE = %d,
@@ -141,49 +141,49 @@ void main() {
             __local float localRhs[BATCH_SIZE][BATCH_SIZE_K];
             float value[PRIVATE_ROWS][PRIVATE_COLS];
 
-            const size_t localI = get_local_id(0);
-            const size_t localJ = get_local_id(1);
+            const int localI = get_local_id(0);
+            const int localJ = get_local_id(1);
 
-            const size_t localId = get_local_id(0) * WORK_GROUP_SIZE + get_local_id(1);
-            const size_t groupI = get_group_id(0) * LOCAL_ROWS;
-            const size_t groupJ = get_group_id(1) * LOCAL_COLS;
+            const int localId = get_local_id(0) * WORK_GROUP_SIZE + get_local_id(1);
+            const int groupI = get_group_id(0) * LOCAL_ROWS;
+            const int groupJ = get_group_id(1) * LOCAL_COLS;
 
             // initialize private memory.
-            for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+            for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
                     value[pi][pj] = 0.0f;
                 }
             }
 
-            for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
+            for(int k = 0; k < cols; k += BATCH_SIZE_K) {
                 barrier(CLK_LOCAL_MEM_FENCE);
-                for(size_t offset = 0; offset < LOCAL_COPY_COUNT; ++offset) {
-                    const size_t id = (offset * LOCAL_SIZE) + localId;
-                    const size_t copyLhsI = id / BATCH_SIZE_K;
-                    const size_t copyLhsJ = id %% BATCH_SIZE_K;
-                    const size_t copyRhsI = id / LOCAL_ROWS;
-                    const size_t copyRhsJ = id %% LOCAL_ROWS;
+                for(int offset = 0; offset < LOCAL_COPY_COUNT; ++offset) {
+                    const int id = (offset * LOCAL_SIZE) + localId;
+                    const int copyLhsI = id / BATCH_SIZE_K;
+                    const int copyLhsJ = id %% BATCH_SIZE_K;
+                    const int copyRhsI = id / LOCAL_ROWS;
+                    const int copyRhsJ = id %% LOCAL_ROWS;
                     localLhs[copyLhsI][copyLhsJ] = lhs[(groupI + copyLhsI) * cols + (k + copyLhsJ)];
                     localRhs[copyRhsJ][copyRhsI] = rhs[(k + copyRhsI) * resultCols + (groupJ + copyRhsJ)];
                 }
                 barrier(CLK_LOCAL_MEM_FENCE);
 
-                for(size_t lk = 0; lk < BATCH_SIZE_K; ++lk) {
+                for(int lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
-                    for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                    for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
                         privateCols[pj] = localRhs[pj * PRIVATE_COLS + localJ][lk];
                     }
-                    for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                    for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
                         const float privateRow = localLhs[pi * PRIVATE_ROWS + localI][lk];
-                        for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+                        for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
                     }
                 }
             }
-            for(size_t pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                const size_t globalRowOffset = (pi * PRIVATE_ROWS + groupI + localI) * resultCols;
-                for(size_t pj = 0; pj < PRIVATE_COLS; ++pj) {
+            for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
+                const int globalRowOffset = (pi * PRIVATE_ROWS + groupI + localI) * resultCols;
+                for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
                     result[globalRowOffset + (pj * PRIVATE_COLS + groupJ + localJ)] = value[pi][pj];
                 }
             }
@@ -203,9 +203,9 @@ void main() {
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     // calculate padded matrix size.
-    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_SIZE);
-    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_SIZE);
-    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_SIZE);
+    immutable bufferCols = cast(int) roundUp(COLS, BATCH_SIZE);
+    immutable bufferRows = cast(int) roundUp(ROWS, BATCH_SIZE);
+    immutable bufferResultCols = cast(int) roundUp(RESULT_COLS, BATCH_SIZE);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
