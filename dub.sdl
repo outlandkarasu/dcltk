@@ -17,11 +17,13 @@ configuration "examples-hello-world" {
 configuration "examples-product" {
     targetType "executable"
     mainSourceFile "examples/product.d"
+    stringImportPaths "examples/"
 }
 
 configuration "examples-product-with-cpu" {
     targetType "executable"
     mainSourceFile "examples/product.d"
+    stringImportPaths "examples/"
     versions "DcltkWithCpuTest"
 }
 
