@@ -65,10 +65,10 @@ void main() {
         ROWS = 2048,
         COLS = 2048,
         RESULT_COLS = 2048,
+        BATCH_SIZE = 128,
         PRIVATE_SIZE = 8,
-        WORK_GROUP_SIZE = 8,
-        BATCH_SIZE = WORK_GROUP_SIZE * PRIVATE_SIZE,
-        BATCH_SIZE_K = 8
+        WORK_GROUP_SIZE = BATCH_SIZE / PRIVATE_SIZE,
+        BATCH_SIZE_K = 16
     }
 
     // initialize operand matrixes.
@@ -138,7 +138,7 @@ void main() {
             };
 
             __local float localLhs[BATCH_SIZE][BATCH_SIZE_K];
-            __local float localRhs[BATCH_SIZE][BATCH_SIZE_K];
+            __local float localRhs[BATCH_SIZE][BATCH_SIZE_K + 2];
             float value[PRIVATE_ROWS][PRIVATE_COLS];
 
             const int localI = get_local_id(1);
@@ -171,10 +171,10 @@ void main() {
                 for(int lk = 0; lk < BATCH_SIZE_K; ++lk) {
                     float privateCols[PRIVATE_COLS];
                     for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
-                        privateCols[pj] = localRhs[pj * PRIVATE_COLS + localJ][lk];
+                        privateCols[pj] = localRhs[pj * WORK_GROUP_SIZE + localJ][lk];
                     }
                     for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                        const float privateRow = localLhs[pi * PRIVATE_ROWS + localI][lk];
+                        const float privateRow = localLhs[pi * WORK_GROUP_SIZE + localI][lk];
                         for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
                             value[pi][pj] = mad(privateRow, privateCols[pj], value[pi][pj]);
                         }
@@ -182,9 +182,9 @@ void main() {
                 }
             }
             for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
-                const int globalRowOffset = (pi * PRIVATE_ROWS + groupI + localI) * resultCols;
+                const int globalRowOffset = (groupI + (pi * WORK_GROUP_SIZE) + localI) * resultCols;
                 for(int pj = 0; pj < PRIVATE_COLS; ++pj) {
-                    result[globalRowOffset + (pj * PRIVATE_COLS + groupJ + localJ)] = value[pi][pj];
+                    result[globalRowOffset + (groupJ + (pj * WORK_GROUP_SIZE) + localJ)] = value[pi][pj];
                 }
             }
         }
