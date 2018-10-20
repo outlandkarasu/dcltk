@@ -254,18 +254,9 @@ void main() {
             commandQueue,
             kernel,
             globalWorkSizes,
-            localWorkSizes);
-        cl.enqueueReadBuffer(
-            commandQueue,
-            resultBuffer,
-            cl.Position(0, 0),
-            cl.Region(RESULT_COLS, ROWS),
-            bufferResultCols,
-            gpuResult,
+            localWorkSizes,
             event);
-        cl.flushCommandQueue(commandQueue);
         cl.waitAndReleaseEvents(event);
-        cl.finishCommandQueue(commandQueue);
     }
 
     // benchmark CPU and GPU.
@@ -275,7 +266,8 @@ void main() {
     } else {
         immutable cpuMsecs = 0;
     }
-    immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
+
+    immutable gpuMsecs = benchmark!(() => productGpu())(4)[0].total!"msecs" / 4;
     writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
 
     // writefln("%s", cpuResult);
@@ -283,6 +275,16 @@ void main() {
 
     // check result values.
     version(DcltkWithCpuTest) {
+        cl_event event;
+        cl.enqueueReadBuffer(
+            commandQueue,
+            resultBuffer,
+            cl.Position(0, 0),
+            cl.Region(RESULT_COLS, ROWS),
+            bufferResultCols,
+            gpuResult,
+            event);
+        cl.waitAndReleaseEvents(event);
         foreach(i, e; cpuResult) {
             assert(approxEqual(e, gpuResult[i]));
         }
