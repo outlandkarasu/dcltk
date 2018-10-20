@@ -141,12 +141,12 @@ void main() {
             __local float localRhs[BATCH_SIZE][BATCH_SIZE_K];
             float value[PRIVATE_ROWS][PRIVATE_COLS];
 
-            const int localI = get_local_id(0);
-            const int localJ = get_local_id(1);
+            const int localI = get_local_id(1);
+            const int localJ = get_local_id(0);
 
-            const int localId = get_local_id(0) * WORK_GROUP_SIZE + get_local_id(1);
-            const int groupI = get_group_id(0) * LOCAL_ROWS;
-            const int groupJ = get_group_id(1) * LOCAL_COLS;
+            const int localId = localI * WORK_GROUP_SIZE + localJ;
+            const int groupI = get_group_id(1) * LOCAL_ROWS;
+            const int groupJ = get_group_id(0) * LOCAL_COLS;
 
             // initialize private memory.
             for(int pi = 0; pi < PRIVATE_ROWS; ++pi) {
@@ -196,8 +196,8 @@ void main() {
     scope(exit) cl.releaseKernel(kernel);
 
     immutable(size_t)[] globalWorkSizes = [
-        roundUp(ROWS, BATCH_SIZE) / PRIVATE_SIZE,
-        roundUp(RESULT_COLS, BATCH_SIZE) / PRIVATE_SIZE
+        roundUp(RESULT_COLS, BATCH_SIZE) / PRIVATE_SIZE,
+        roundUp(ROWS, BATCH_SIZE) / PRIVATE_SIZE
     ];
     immutable(size_t)[] localWorkSizes = [WORK_GROUP_SIZE, WORK_GROUP_SIZE];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
