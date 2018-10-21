@@ -4,9 +4,15 @@ import std.parallelism : parallel;
 import std.random : uniform01;
 import std.range : iota;
 import std.stdio : writefln;
+import std.traits : isIntegral;
 
 import cl = dcltk;
 import derelict.opencl.cl : cl_event;
+
+/// round up for unit.
+private T roundUp(T)(T value, T unit) @safe pure nothrow @nogc if(isIntegral!T) {
+    return (value + unit - 1) / unit * unit;
+}
 
 /// matrix product by CPU.
 void productCpu(
@@ -55,7 +61,9 @@ void main() {
     enum {
         ROWS = 1000,
         COLS = 2000,
-        RESULT_COLS = 3000
+        RESULT_COLS = 3000,
+        BATCH_ROWS = 32,
+        BATCH_COLS = 32
     }
 
     // initialize operand matrixes.
@@ -110,22 +118,60 @@ void main() {
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    auto lhsBuffer = cl.createReadBuffer(context, lhs);
+    immutable(size_t)[] globalWorkSizes = [
+        roundUp(RESULT_COLS, BATCH_COLS),
+        roundUp(ROWS, BATCH_ROWS)
+    ];
+    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
+    writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
+
+    // calculate padded matrix size.
+    immutable bufferCols = cast(int) roundUp(COLS, BATCH_COLS);
+    immutable bufferRows = cast(int) roundUp(ROWS, BATCH_ROWS);
+    immutable bufferResultCols = cast(int) roundUp(RESULT_COLS, BATCH_COLS);
+    writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
+
+    immutable lhsSize = bufferCols * bufferRows;
+    immutable rhsSize = bufferResultCols * bufferCols;
+    immutable resultSize = bufferResultCols * bufferRows;
+
+    // create buffers.
+    auto lhsBuffer = cl.createReadBuffer(context, lhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(lhsBuffer);
-    auto rhsBuffer = cl.createReadBuffer(context, rhs);
+    auto rhsBuffer = cl.createReadBuffer(context, rhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(rhsBuffer);
-    auto resultBuffer = cl.createWriteBuffer(context, gpuResult.length * float.sizeof);
+    auto resultBuffer = cl.createWriteBuffer(context, resultSize * float.sizeof);
     scope(exit) cl.releaseBuffer(resultBuffer);
+
+    // copy parameter matrixes.
+    cl.enqueueFillBuffer(
+        commandQueue, lhsBuffer, [0.0f], 0, lhsSize);
+    cl.enqueueWriteBuffer(
+        commandQueue,
+        lhsBuffer,
+        cl.Position(0, 0),
+        cl.Region(COLS, ROWS),
+        bufferCols,
+        lhs);
+    cl.enqueueFillBuffer(
+        commandQueue, rhsBuffer, [0.0f], 0, rhsSize);
+    cl.enqueueWriteBuffer(
+        commandQueue,
+        rhsBuffer,
+        cl.Position(0, 0),
+        cl.Region(RESULT_COLS, COLS),
+        bufferResultCols,
+        rhs);
 
     // set kernel arguments.
     cl.setKernelArg(kernel, 0, lhsBuffer);
     cl.setKernelArg(kernel, 1, rhsBuffer);
     cl.setKernelArg(kernel, 2, resultBuffer);
-    cl.setKernelArg(kernel, 3, ROWS);
-    cl.setKernelArg(kernel, 4, COLS);
-    cl.setKernelArg(kernel, 5, RESULT_COLS);
-    cl.allocateLocalMemory(kernel, 6, 1024 * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, 1024 * float.sizeof);
+    cl.setKernelArg(kernel, 3, bufferRows);
+    cl.setKernelArg(kernel, 4, bufferCols);
+    cl.setKernelArg(kernel, 5, bufferResultCols);
+    cl.allocateLocalMemory(kernel, 6, (BATCH_ROWS * BATCH_COLS) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, (BATCH_COLS * BATCH_ROWS) * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
@@ -133,7 +179,7 @@ void main() {
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32], event);
+        cl.enqueueKernel(commandQueue, kernel, globalWorkSizes, localWorkSizes, event);
         cl.waitAndReleaseEvents(event);
     }
 
@@ -143,7 +189,14 @@ void main() {
     
     version(DcltkWithCpuTest) {
         cl_event event;
-        cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
+        cl.enqueueReadBuffer(
+            commandQueue,
+            resultBuffer,
+            cl.Position(0, 0),
+            cl.Region(RESULT_COLS, ROWS),
+            bufferResultCols,
+            gpuResult,
+            event);
         cl.waitAndReleaseEvents(event);
 
         immutable cpuMsecs = benchmark!(() => productCpu(
