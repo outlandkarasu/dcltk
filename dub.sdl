@@ -19,3 +19,8 @@ configuration "examples-product" {
     mainSourceFile "examples/product.d"
 }
 
+configuration "examples-product-with-cpu-test" {
+    targetType "executable"
+    mainSourceFile "examples/product.d"
+    versions "DcltkWithCpuTest"
+}

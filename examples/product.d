@@ -51,9 +51,9 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 200,
-        COLS = 300,
-        RESULT_COLS = 400
+        ROWS = 1000,
+        COLS = 2000,
+        RESULT_COLS = 3000
     }
 
     // initialize operand matrixes.
@@ -179,25 +179,32 @@ void main() {
 
     void productGpu() {
         cl_event event;
-        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32]);
-        cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
-        cl.flushCommandQueue(commandQueue);
+        cl.enqueueKernel(commandQueue, kernel, [32 * 4, 32 * 4], [32, 32], event);
         cl.waitAndReleaseEvents(event);
-        cl.finishCommandQueue(commandQueue);
     }
 
     // benchmark CPU and GPU.
-    immutable cpuMsecs = benchmark!(() => productCpu(
-                lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
-    immutable gpuMsecs = benchmark!(() => productGpu())(1)[0].total!"msecs";
-    writefln("cpu: %d msecs, gpu: %d msecs", cpuMsecs, gpuMsecs);
+    immutable gpuMsecs = benchmark!(() => productGpu())(4)[0].total!"msecs" / 4;
+    immutable gpuFlops = (cast(real) ROWS) * RESULT_COLS * (COLS * 2.0) / ((cast(real) gpuMsecs) / 1000.0);
+    
+    version(DcltkWithCpuTest) {
+        cl_event event;
+        cl.enqueueReadBuffer(commandQueue, resultBuffer, 0, gpuResult, event);
+        cl.waitAndReleaseEvents(event);
 
-    // writefln("%s", cpuResult);
-    // writefln("%s", gpuResult);
+        immutable cpuMsecs = benchmark!(() => productCpu(
+                    lhs, rhs, cpuResult, ROWS, COLS, RESULT_COLS))(1)[0].total!"msecs";
+        writefln("cpu: %d msecs, gpu: %d msecs (%.1f GFLOPS, faster %.1f times)",
+            cpuMsecs, gpuMsecs, gpuFlops / (10.0^^9), cast(real) cpuMsecs / cast(real) gpuMsecs);
 
-    // check result values.
-    foreach(i, e; cpuResult) {
-        assert(approxEqual(e, gpuResult[i]));
+        // writefln("%s", cpuResult);
+        // writefln("%s", gpuResult);
+
+        // check result values.
+        foreach(i, e; cpuResult) {
+            assert(approxEqual(e, gpuResult[i]));
+        }
+    } else {
+        writefln("gpu: %d msecs (%.1f GFLOPS)", gpuMsecs, gpuFlops / (10.0^^9));
     }
 }
-
