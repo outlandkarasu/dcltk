@@ -74,6 +74,27 @@ cl_mem createReadBuffer(cl_context context, const(void)[] data) {
             cast(void[]) data);
 }
 
+/**
+ *  create read buffer object.
+ *
+ *  Params:
+ *      context = context.
+ *      size = buffer size.
+ *  Returns:
+ *      read buffer object.
+ */
+cl_mem createReadBuffer(cl_context context, size_t size) {
+    cl_int errorCode;
+    auto buffer = clCreateBuffer(
+            context,
+            CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY,
+            size,
+            null,
+            &errorCode);
+    enforceCl(errorCode);
+    return buffer;
+}
+
 /// release buffer object.
 void releaseBuffer(cl_mem buffer) {
     enforceCl(clReleaseMemObject(buffer));
