@@ -118,13 +118,6 @@ void main() {
     auto kernel = cl.createKernel(program, "product");
     scope(exit) cl.releaseKernel(kernel);
 
-    immutable(size_t)[] globalWorkSizes = [
-        roundUp(RESULT_COLS, BATCH_COLS),
-        roundUp(ROWS, BATCH_ROWS)
-    ];
-    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
-    writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
-
     // calculate padded matrix size.
     immutable bufferCols = cast(uint) roundUp(COLS, BATCH_COLS);
     immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_ROWS);
@@ -176,6 +169,13 @@ void main() {
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
         cl.getKernelPreferredWorkGroupSizeMultiple(kernel, device));
+
+    immutable(size_t)[] globalWorkSizes = [
+        bufferResultCols,
+        bufferRows
+    ];
+    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
+    writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     void productGpu() {
         cl_event event;
