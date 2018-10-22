@@ -126,9 +126,9 @@ void main() {
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     // calculate padded matrix size.
-    immutable bufferCols = cast(int) roundUp(COLS, BATCH_COLS);
-    immutable bufferRows = cast(int) roundUp(ROWS, BATCH_ROWS);
-    immutable bufferResultCols = cast(int) roundUp(RESULT_COLS, BATCH_COLS);
+    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_COLS);
+    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_ROWS);
+    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_COLS);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
     immutable lhsSize = bufferCols * bufferRows;
