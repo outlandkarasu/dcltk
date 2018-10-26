@@ -114,7 +114,7 @@ void main() {
     scope(exit) cl.releaseCommandQueue(commandQueue);
 
     auto program = cl.createProgramFromSource(
-        context, import("product.cl").format(BATCH_SIZE_K));
+        context, import("product.cl").format(BATCH_ROWS, BATCH_COLS, BATCH_SIZE_K));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -166,8 +166,6 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferRows);
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
-    cl.allocateLocalMemory(kernel, 6, (BATCH_ROWS * BATCH_SIZE_K) * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, (BATCH_SIZE_K * BATCH_COLS) * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
