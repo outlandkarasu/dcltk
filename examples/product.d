@@ -4,6 +4,7 @@ import std.parallelism : parallel;
 import std.random : uniform01;
 import std.range : iota;
 import std.stdio : writefln;
+import std.string : format;
 import std.traits : isIntegral;
 
 import cl = dcltk;
@@ -63,7 +64,8 @@ void main() {
         COLS = 2000,
         RESULT_COLS = 3000,
         BATCH_ROWS = 32,
-        BATCH_COLS = 32
+        BATCH_COLS = 32,
+        BATCH_SIZE_K = 32
     }
 
     // initialize operand matrixes.
@@ -111,7 +113,8 @@ void main() {
     auto commandQueue = cl.createCommandQueue(context, device);
     scope(exit) cl.releaseCommandQueue(commandQueue);
 
-    auto program = cl.createProgramFromSource(context, import("product.cl"));
+    auto program = cl.createProgramFromSource(
+        context, import("product.cl").format(BATCH_SIZE_K));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -163,8 +166,8 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferRows);
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
-    cl.allocateLocalMemory(kernel, 6, (BATCH_ROWS * BATCH_COLS) * float.sizeof);
-    cl.allocateLocalMemory(kernel, 7, (BATCH_COLS * BATCH_ROWS) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 6, (BATCH_ROWS * BATCH_SIZE_K) * float.sizeof);
+    cl.allocateLocalMemory(kernel, 7, (BATCH_SIZE_K * BATCH_COLS) * float.sizeof);
 
     writefln("kernel w: %s, pw: %s",
         cl.getKernelWorkGroupSize(kernel, device),
