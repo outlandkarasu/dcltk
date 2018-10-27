@@ -60,12 +60,13 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 1000,
-        COLS = 2000,
-        RESULT_COLS = 3000,
+        ROWS = 4096,
+        COLS = 4096,
+        RESULT_COLS = 4096,
         BATCH_ROWS = 128,
         BATCH_COLS = 128,
-        BATCH_SIZE_K = 8,
+        //BATCH_SIZE_K = 8, // for NVIDIA GeForce GTX 960M
+        BATCH_SIZE_K = 32, // for Tesla K80
         PRIVATE_ROWS = 8,
         PRIVATE_COLS = 8
     }
