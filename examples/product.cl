@@ -18,7 +18,7 @@ __kernel void product(
         LOCAL_COPY_COUNT_RHS = (BATCH_SIZE_K * BATCH_COLS) / LOCAL_SIZE
     };
 
-    __local float localLhs[BATCH_ROWS][BATCH_SIZE_K + 1];
+    __local float localLhs[BATCH_SIZE_K][BATCH_ROWS + 2];
     __local float localRhs[BATCH_SIZE_K][BATCH_COLS];
 
     const size_t localJ = get_local_id(0);
@@ -42,7 +42,7 @@ __kernel void product(
             const size_t id = (i * LOCAL_SIZE) + localId;
             const size_t row = id / BATCH_SIZE_K;
             const size_t col = id %% BATCH_SIZE_K;
-            localLhs[row][col] = lhs[(groupI + row) * cols + (k + col)];
+            localLhs[col][row] = lhs[(groupI + row) * cols + (k + col)];
         }
         for(size_t i = 0; i < LOCAL_COPY_COUNT_RHS; ++i) {
             const size_t id = (i * LOCAL_SIZE) + localId;
@@ -58,7 +58,7 @@ __kernel void product(
                 cols[j] = localRhs[lk][localJ + j * LOCAL_WORK_COUNT_COL];
             }
             for(size_t i = 0; i < PRIVATE_ROWS; ++i) {
-                const float row = localLhs[localI + i * LOCAL_WORK_COUNT_ROW][lk];
+                const float row = localLhs[lk][localI + i * LOCAL_WORK_COUNT_ROW];
                 for(size_t j = 0; j < PRIVATE_COLS; ++j) {
                     values[i][j] += row * cols[j];
                 }

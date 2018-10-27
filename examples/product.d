@@ -63,9 +63,9 @@ void main() {
         ROWS = 1000,
         COLS = 2000,
         RESULT_COLS = 3000,
-        BATCH_ROWS = 64,
-        BATCH_COLS = 64,
-        BATCH_SIZE_K = 16,
+        BATCH_ROWS = 128,
+        BATCH_COLS = 128,
+        BATCH_SIZE_K = 8,
         PRIVATE_ROWS = 8,
         PRIVATE_COLS = 8
     }
@@ -187,6 +187,7 @@ void main() {
     }
 
     // benchmark CPU and GPU.
+    cl.finishCommandQueue(commandQueue);
     immutable gpuMsecs = benchmark!(() => productGpu())(4)[0].total!"msecs" / 4;
     immutable gpuFlops = (cast(real) ROWS) * RESULT_COLS * (COLS * 2.0) / ((cast(real) gpuMsecs) / 1000.0);
     
