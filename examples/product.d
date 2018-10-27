@@ -60,12 +60,15 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 1000,
-        COLS = 2000,
-        RESULT_COLS = 3000,
-        BATCH_ROWS = 32,
-        BATCH_COLS = 32,
-        BATCH_SIZE_K = 32
+        ROWS = 4096,
+        COLS = 4096,
+        RESULT_COLS = 4096,
+        BATCH_ROWS = 128,
+        BATCH_COLS = 128,
+        //BATCH_SIZE_K = 8, // for NVIDIA GeForce GTX 960M
+        BATCH_SIZE_K = 32, // for Tesla K80
+        PRIVATE_ROWS = 8,
+        PRIVATE_COLS = 8
     }
 
     // initialize operand matrixes.
@@ -114,7 +117,7 @@ void main() {
     scope(exit) cl.releaseCommandQueue(commandQueue);
 
     auto program = cl.createProgramFromSource(
-        context, import("product.cl").format(BATCH_ROWS, BATCH_COLS, BATCH_SIZE_K));
+        context, import("product.cl").format(BATCH_ROWS, BATCH_COLS, BATCH_SIZE_K, PRIVATE_ROWS, PRIVATE_COLS));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
 
@@ -172,10 +175,10 @@ void main() {
         cl.getKernelPreferredWorkGroupSizeMultiple(kernel, device));
 
     immutable(size_t)[] globalWorkSizes = [
-        bufferResultCols,
-        bufferRows
+        bufferResultCols / PRIVATE_COLS,
+        bufferRows / PRIVATE_ROWS
     ];
-    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
+    immutable(size_t)[] localWorkSizes = [BATCH_COLS / PRIVATE_COLS, BATCH_ROWS / PRIVATE_ROWS];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     void productGpu() {
@@ -185,6 +188,7 @@ void main() {
     }
 
     // benchmark CPU and GPU.
+    cl.finishCommandQueue(commandQueue);
     immutable gpuMsecs = benchmark!(() => productGpu())(4)[0].total!"msecs" / 4;
     immutable gpuFlops = (cast(real) ROWS) * RESULT_COLS * (COLS * 2.0) / ((cast(real) gpuMsecs) / 1000.0);
     
