@@ -10,7 +10,7 @@ import std.exception : assumeUnique;
 import std.string : toStringz;
 
 /**
- *  create program from source.
+ *  create program with source.
  *
  *  Params:
  *      context = context.
@@ -25,6 +25,34 @@ cl_program createProgramWithSource(cl_context context, string source) {
     auto program = clCreateProgramWithSource(
             context, 1, &sourcePointer, &length, &errorCode);
     enforceCl(errorCode);
+    return program;
+}
+
+/**
+ *  create program with binary.
+ *
+ *  Params:
+ *      context = context.
+ *      deviceId = device ID.
+ *      binary = program binary.
+ *  Returns:
+ *      program.
+ */
+cl_program createProgramWithBinary(cl_context context, cl_device_id deviceId, const(ubyte)[] binary) {
+    cl_int errorCode;
+    cl_int status;
+    size_t length = binary.length;
+    auto binaryPointer = binary.ptr;
+    auto program = clCreateProgramWithBinary(
+            context, 
+            1,
+            &deviceId,
+            [binary.length].ptr,
+            &binaryPointer,
+            &status,
+            &errorCode);
+    enforceCl(errorCode);
+    enforceCl(status);
     return program;
 }
 
