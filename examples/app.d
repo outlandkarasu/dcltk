@@ -37,9 +37,9 @@ void main() {
     auto data = [100.0f];
     auto buffer = cl.createBuffer(context, data);
     scope(exit) cl.releaseBuffer(buffer);
-    auto writeBuffer = cl.createWriteBuffer(context, 100);
+    auto writeBuffer = cl.createHostReadOnlyBuffer(context, 100);
     scope(exit) cl.releaseBuffer(writeBuffer);
-    auto readBuffer = cl.createReadBuffer(context, data);
+    auto readBuffer = cl.createHostWriteOnlyBuffer(context, data);
     scope(exit) cl.releaseBuffer(readBuffer);
 
     cl.enqueueWriteBuffer(commandQueue, buffer, 0, [200.0f]);
