@@ -39,14 +39,14 @@ cl_mem createBuffer(cl_context context, const(void)[] data) {
 }
 
 /**
- *  create write buffer object.
+ *  create host read only buffer object.
  *
  *  Params:
  *      context = context.
  *  Returns:
- *      write buffer object.
+ *      host read only buffer object.
  */
-cl_mem createWriteBuffer(cl_context context, size_t size) {
+cl_mem createHostReadOnlyBuffer(cl_context context, size_t size) {
     cl_int errorCode;
     auto buffer = clCreateBuffer(
             context,
@@ -59,15 +59,15 @@ cl_mem createWriteBuffer(cl_context context, size_t size) {
 }
 
 /**
- *  create read buffer object.
+ *  create host write only and device read only buffer object.
  *
  *  Params:
  *      context = context.
  *      data = buffer data.
  *  Returns:
- *      write buffer object.
+ *      host write only and device read only buffer object.
  */
-cl_mem createReadBuffer(cl_context context, const(void)[] data) {
+cl_mem createHostWriteOnlyBuffer(cl_context context, const(void)[] data) {
     return createBuffer(
             context,
             CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -75,15 +75,15 @@ cl_mem createReadBuffer(cl_context context, const(void)[] data) {
 }
 
 /**
- *  create read buffer object.
+ *  create host write only and device read only buffer object.
  *
  *  Params:
  *      context = context.
  *      size = buffer size.
  *  Returns:
- *      read buffer object.
+ *      host write only and device read only buffer object.
  */
-cl_mem createReadBuffer(cl_context context, size_t size) {
+cl_mem createHostWriteOnlyBuffer(cl_context context, size_t size) {
     cl_int errorCode;
     auto buffer = clCreateBuffer(
             context,

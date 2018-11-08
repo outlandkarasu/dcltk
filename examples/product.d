@@ -135,11 +135,11 @@ void main() {
     immutable resultSize = bufferResultCols * bufferRows;
 
     // create buffers.
-    auto lhsBuffer = cl.createReadBuffer(context, lhsSize * float.sizeof);
+    auto lhsBuffer = cl.createHostWriteOnlyBuffer(context, lhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(lhsBuffer);
-    auto rhsBuffer = cl.createReadBuffer(context, rhsSize * float.sizeof);
+    auto rhsBuffer = cl.createHostWriteOnlyBuffer(context, rhsSize * float.sizeof);
     scope(exit) cl.releaseBuffer(rhsBuffer);
-    auto resultBuffer = cl.createWriteBuffer(context, resultSize * float.sizeof);
+    auto resultBuffer = cl.createHostReadOnlyBuffer(context, resultSize * float.sizeof);
     scope(exit) cl.releaseBuffer(resultBuffer);
 
     // copy parameter matrixes.
