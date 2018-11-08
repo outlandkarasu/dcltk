@@ -55,7 +55,7 @@ void main() {
     cl.waitAndReleaseEvents(event);
     assert(data[0] == 300.0f);
 
-    auto program = cl.createProgramFromSource(context, `
+    auto program = cl.createProgramWithSource(context, `
         __kernel void k(float value) {
             printf("value:%g\n", value);
         }
