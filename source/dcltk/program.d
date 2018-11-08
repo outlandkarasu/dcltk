@@ -18,7 +18,7 @@ import std.string : toStringz;
  *  Returns:
  *      program.
  */
-cl_program createProgramFromSource(cl_context context, string source) {
+cl_program createProgramWithSource(cl_context context, string source) {
     cl_int errorCode;
     size_t length = source.length;
     const(char)* sourcePointer = toStringz(source);

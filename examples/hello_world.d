@@ -34,7 +34,7 @@ void main() {
     auto commandQueue = cl.createCommandQueue(context, device);
     scope(exit) cl.releaseCommandQueue(commandQueue);
 
-    auto program = cl.createProgramFromSource(context, `
+    auto program = cl.createProgramWithSource(context, `
         __kernel void helloWorld(void) {
             printf("Hello,World!\n");
         }

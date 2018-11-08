@@ -116,7 +116,7 @@ void main() {
     auto commandQueue = cl.createCommandQueue(context, device);
     scope(exit) cl.releaseCommandQueue(commandQueue);
 
-    auto program = cl.createProgramFromSource(
+    auto program = cl.createProgramWithSource(
         context, import("product.cl").format(BATCH_ROWS, BATCH_COLS, BATCH_SIZE_K, PRIVATE_ROWS, PRIVATE_COLS));
     scope(exit) cl.releaseProgram(program);
     cl.buildProgram(program, deviceIds);
