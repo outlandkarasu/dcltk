@@ -408,3 +408,71 @@ void enqueueFillBuffer(T)(
         size_t count) {
     enqueueFillBuffer(queue, buffer, pattern, offset, count, null);
 }
+
+/**
+ *  enqueue copy buffer task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      source = source buffer.
+ *      dest = dest buffer.
+ *      sourceOffset = source buffer offset.
+ *      destOffset = dest buffer offset.
+ *      size = copy size.
+ *      event = wait event.
+ */
+void enqueueCopyBuffer(
+        cl_command_queue queue,
+        cl_mem source,
+        cl_mem dest,
+        size_t sourceOffset,
+        size_t destOffset,
+        size_t size,
+        cl_event *event) {
+    enforceCl(clEnqueueCopyBuffer(
+                queue, source, dest, sourceOffset, destOffset, size, 0, null, event));
+}
+
+/**
+ *  enqueue copy buffer task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      source = source buffer.
+ *      dest = dest buffer.
+ *      sourceOffset = source buffer offset.
+ *      destOffset = dest buffer offset.
+ *      size = copy size.
+ *      event = wait event.
+ */
+void enqueueCopyBuffer(
+        cl_command_queue queue,
+        cl_mem source,
+        cl_mem dest,
+        size_t sourceOffset,
+        size_t destOffset,
+        size_t size,
+        out cl_event event) {
+    enqueueCopyBuffer(queue, source, dest, sourceOffset, destOffset, size, &event);
+}
+
+/**
+ *  enqueue copy buffer task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      source = source buffer.
+ *      dest = dest buffer.
+ *      sourceOffset = source buffer offset.
+ *      destOffset = dest buffer offset.
+ */
+void enqueueCopyBuffer(
+        cl_command_queue queue,
+        cl_mem source,
+        cl_mem dest,
+        size_t sourceOffset,
+        size_t destOffset,
+        size_t size) {
+    enqueueCopyBuffer(queue, source, dest, sourceOffset, destOffset, size, null);
+}
+
