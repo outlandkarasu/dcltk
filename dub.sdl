@@ -26,3 +26,11 @@ configuration "examples-product-with-cpu-test" {
     stringImportPaths "examples/"
     versions "DcltkWithCpuTest"
 }
+
+configuration "examples-product-fpga" {
+    targetType "executable"
+    mainSourceFile "examples/productFpga.d"
+    stringImportPaths "examples/"
+    versions "DcltkWithCpuTest"
+}
+

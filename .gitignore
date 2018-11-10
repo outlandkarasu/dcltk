@@ -24,3 +24,13 @@ docs/
 
 # Code coverage
 *.lst
+
+.Xil/
+.run/
+fpga_reports/
+examples/productFpga.xclbin
+examples/productFpga.xo
+examples/top_sp.ltx
+awsver.txt
+emconfig.json
+*.log
