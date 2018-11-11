@@ -27,6 +27,7 @@ xocc -l \
   --platform ${PLATFORM} \
   ${OBJECT_FILE} \
   -o ${XCLBIN_FILE} \
+  --profile_kernel all \
   --report_level estimate --report_dir ${REPORT_DIR}
 
 emconfigutil \
