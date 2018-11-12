@@ -27,7 +27,7 @@ void product(
 
     for(size_t i = 0; i < rows; i += BATCH_ROWS) {
         for(size_t j = 0; j < resultCols; j += BATCH_COLS) {
-            float values[BATCH_ROWS][BATCH_COLS];
+            float values[BATCH_ROWS][BATCH_COLS] __attribute__((xcl_array_partition(cyclic, 128, 2)));
             for(size_t pi = 0; pi < BATCH_ROWS; ++pi) {
                 for(size_t pj = 0; pj < BATCH_COLS; ++pj) {
                     values[pi][pj] = 0.0f;
