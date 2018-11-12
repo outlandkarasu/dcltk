@@ -1,13 +1,13 @@
-static enum {
+enum {
     BATCH_ROWS = 128,
     BATCH_COLS = 128,
-    BATCH_K = 16,
+    BATCH_SIZE_K = 32,
 };
 
 static void productBatch(
         __global const float *lhs,
         __global const float *rhs,
-        float batchResults[][BATCH_COLS],
+        float result[][BATCH_COLS],
         uint rows,
         uint cols,
         uint resultCols,
@@ -27,22 +27,20 @@ void product(
 
     for(size_t i = 0; i < rows; i += BATCH_ROWS) {
         for(size_t j = 0; j < resultCols; j += BATCH_COLS) {
-            float batchResults[BATCH_ROWS][BATCH_COLS];
-            for(size_t bi = 0; bi < BATCH_ROWS; ++bi) {
-                for(size_t bj = 0; bj < BATCH_COLS; ++bj) {
-                    batchResults[bi][bj] = 0.0f;
+            float values[BATCH_ROWS][BATCH_COLS];
+            for(size_t pi = 0; pi < BATCH_ROWS; ++pi) {
+                for(size_t pj = 0; pj < BATCH_COLS; ++pj) {
+                    values[pi][pj] = 0.0f;
                 }
             }
 
-	    for(size_t k = 0; k < cols; k += BATCH_K) {
-                productBatch(lhs, rhs, batchResults, rows, cols, resultCols, i, j, k);
+            for(size_t k = 0; k < cols; k += BATCH_SIZE_K) {
+                productBatch(lhs, rhs, values, rows, cols, resultCols, i, j, k);
             }
 
-            for(size_t bi = 0; bi < BATCH_ROWS; ++bi) {
-                const size_t globalI = i + bi;
-                for(size_t bj = 0; bj < BATCH_COLS; ++bj) {
-                    const size_t globalJ = j + bj;
-                    result[globalI * resultCols + globalJ] = batchResults[bi][bj];
+            for(size_t pi = 0; pi < BATCH_ROWS; ++pi) {
+                for(size_t pj = 0; pj < BATCH_COLS; ++pj) {
+	            result[(i + pi) * resultCols + j + pj] = values[pi][pj];
                 }
             }
         }
@@ -52,7 +50,7 @@ void product(
 void productBatch(
         __global const float *lhs,
         __global const float *rhs,
-        float batchResults[][BATCH_COLS],
+        float values[][BATCH_COLS],
         uint rows,
         uint cols,
         uint resultCols,
@@ -63,9 +61,12 @@ void productBatch(
         const size_t globalI = i + offsetI;
         for(size_t j = 0; j < BATCH_COLS; ++j) {
             const size_t globalJ = j + offsetJ;
-	    for(size_t k = 0; k < BATCH_K; ++k) {
-	        batchResults[globalI][globalJ] += lhs[globalI * cols + (k + offsetK)] * rhs[(k + offsetK) * resultCols + globalJ];
+            float value = 0.0f;
+	    for(size_t k = 0; k < BATCH_SIZE_K; ++k) {
+                const size_t globalK = k + offsetK;
+	        value += lhs[globalI * cols + globalK] * rhs[globalK * resultCols + globalJ];
 	    }
+	    values[i][j] = value;
         }
     }
 }
