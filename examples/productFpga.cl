@@ -1,6 +1,6 @@
 enum {
-    BATCH_ROWS = 128,
-    BATCH_COLS = 128,
+    BATCH_ROWS = 16,
+    BATCH_COLS = 16,
     BATCH_K = 16,
 };
 
@@ -25,9 +25,9 @@ void product(
         uint cols,
         uint resultCols) {
 
-    for(size_t i = 0; i < rows; i += BATCH_ROWS) {
-        for(size_t j = 0; j < resultCols; j += BATCH_COLS) {
-            for(size_t k = 0; k < cols; k += BATCH_K) {
+    for(size_t k = 0; k < cols; k += BATCH_K) {
+        for(size_t i = 0; i < rows; i += BATCH_ROWS) {
+            for(size_t j = 0; j < resultCols; j += BATCH_COLS) {
                 productBatch(lhs, rhsT, result, rows, cols, resultCols, i, j, k);
             }
         }
@@ -44,9 +44,10 @@ void productBatch(
         size_t offsetI,
         size_t offsetJ,
         size_t k) {
+    __attribute__((xcl_pipeline_loop))
     for(size_t i = 0; i < BATCH_ROWS; ++i) {
-        const size_t globalI = i + offsetI;
         for(size_t j = 0; j < BATCH_COLS; ++j) {
+            const size_t globalI = i + offsetI;
             const size_t globalJ = j + offsetJ;
             float value = 0.0f;
 	    value += dot(lhs[(globalI * cols + k) / 16], rhsT[(globalJ * cols + k) / 16]);

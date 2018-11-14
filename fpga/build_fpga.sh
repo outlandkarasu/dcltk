@@ -36,5 +36,6 @@ emconfigutil \
   --platform ${PLATFORM} \
   --nd 1 \
   --od ../
-  
-  
+
+#./register_fpga.sh
+
