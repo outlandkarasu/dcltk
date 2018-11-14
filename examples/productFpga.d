@@ -61,9 +61,9 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 128,
-        COLS = 128,
-        RESULT_COLS = 128,
+        ROWS = 1024,
+        COLS = 1024,
+        RESULT_COLS = 1024,
         BATCH_ROWS = 128,
         BATCH_COLS = 128,
     }
