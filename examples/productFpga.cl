@@ -45,16 +45,35 @@ void productBatch(
         size_t offsetJ,
         size_t offsetK) {
     for(size_t i = 0; i < BATCH_ROWS; ++i) {
+        bool loadedCols = 0;
         const size_t globalI = i + offsetI;
+        float rowBuffer[BATCH_K];
+        float colsBuffer[BATCH_COLS][BATCH_K];
+
+        // load a row values.
+        for(size_t k = 0; k < BATCH_K; ++k) {
+            rowBuffer[k] = lhs[globalI * cols + (offsetK + k)];
+        }
+
         for(size_t j = 0; j < BATCH_COLS; ++j) {
             const size_t globalJ = j + offsetJ;
             float value = 0.0f;
+
+            // load a col values.
+            if(!loadedCols) {
+	        for(size_t k = 0; k < BATCH_K; ++k) {
+                    const size_t globalK = offsetK + k;
+                    colsBuffer[j][k] = rhs[globalK * resultCols + globalJ];
+	        }
+            }
+
 	    for(size_t k = 0; k < BATCH_K; ++k) {
-                const size_t globalK = offsetK + k;
-	        value += lhs[globalI * cols + globalK] * rhs[globalK * resultCols + globalJ];
+	        value += rowBuffer[k] * colsBuffer[j][k];
 	    }
+
 	    result[globalI * resultCols + globalJ] += value;
         }
+        loadedCols = 1;
     }
 }
 
