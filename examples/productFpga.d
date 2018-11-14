@@ -16,6 +16,16 @@ private T roundUp(T)(T value, T unit) @safe pure nothrow @nogc if(isIntegral!T) 
     return (value + unit - 1) / unit * unit;
 }
 
+private T[] transpose(T)(const(T)[] values, size_t rows, size_t cols) {
+    auto result = new T[values.length];
+    foreach(i; 0 .. rows) {
+        foreach(j; 0 .. cols) {
+            result[j * rows + i] = values[i * cols + j];
+        }
+    }
+    return result;
+}
+
 /// matrix product by CPU.
 void productCpu(
         const(float)[] lhs,
@@ -137,7 +147,8 @@ void main() {
     // create buffers.
     auto lhsBuffer = cl.createHostWriteOnlyBuffer(context, lhs);
     scope(exit) cl.releaseBuffer(lhsBuffer);
-    auto rhsBuffer = cl.createHostWriteOnlyBuffer(context, rhs);
+    auto rhsT = transpose(rhs, bufferCols, bufferResultCols);
+    auto rhsBuffer = cl.createHostWriteOnlyBuffer(context, rhsT);
     scope(exit) cl.releaseBuffer(rhsBuffer);
     auto resultBuffer = cl.createHostReadOnlyBuffer(context, resultSize * float.sizeof);
     scope(exit) cl.releaseBuffer(resultBuffer);
