@@ -30,6 +30,7 @@ void product(
         localRhsT[localJ][localI] = rhsT[(j * cols + k) / VECTOR_SIZE + localI];
         barrier(CLK_LOCAL_MEM_FENCE);
 
+        __attribute__((xcl_pipeline_loop))
         for(size_t lk = 0; lk < BATCH_K; ++lk) {
             value += dot(localLhs[localI][lk], localRhsT[localJ][lk]);
         }
