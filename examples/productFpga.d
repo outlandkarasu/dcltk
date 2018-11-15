@@ -71,11 +71,11 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 1024,
-        COLS = 1024,
-        RESULT_COLS = 1024,
-        BATCH_ROWS = 128,
-        BATCH_COLS = 128,
+        ROWS = 256,
+        COLS = 256,
+        RESULT_COLS = 256,
+        BATCH_ROWS = 16,
+        BATCH_COLS = 16,
     }
 
     // initialize operand matrixes.
@@ -159,8 +159,8 @@ void main() {
     cl.setKernelArg(kernel, 2, resultBuffer);
     cl.setKernelArg(kernel, 3, bufferCols);
 
-    immutable(size_t)[] globalWorkSizes = [bufferRows, bufferResultCols];
-    immutable(size_t)[] localWorkSizes = [1, 1];
+    immutable(size_t)[] globalWorkSizes = [bufferResultCols, bufferRows];
+    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     void productGpu() {
