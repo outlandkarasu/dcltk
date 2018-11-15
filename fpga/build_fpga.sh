@@ -21,7 +21,9 @@ xocc -c \
   --platform ${PLATFORM} \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
-  --report_level estimate --report_dir ${REPORT_DIR}
+  --report_level estimate --report_dir ${REPORT_DIR} \
+  --max_memory_ports all \
+  --memory_port_data_width all
 
 xocc -l \
   --nk ${KERNEL_NAME}:1 \
