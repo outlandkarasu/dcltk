@@ -3,15 +3,24 @@ enum {
     VECTOR_SIZE = 16
 };
 
+static void clearTemporary(float temp[][BATCH_SIZE]);
 static void productBatch(
     __global const float16 *lhs,
     __global const float16 *rhsT,
-    __global float *result,
+    float result[][BATCH_SIZE],
     uint rows,
     uint cols,
     uint resultCols,
     size_t batchI,
     size_t batchJ);
+static void copyTemporary(
+    const float temp[][BATCH_SIZE],
+    __global float *result,
+    uint rows,
+    uint resultCols,
+    size_t batchI,
+    size_t batchJ
+);
 
 __kernel
 __attribute__((reqd_work_group_size(1, 1, 1)))
@@ -25,7 +34,18 @@ void product(
         uint resultCols) {
     for(size_t i = 0; i < rows; i += BATCH_SIZE) {
         for(size_t j = 0; j < resultCols; j += BATCH_SIZE) {
-            productBatch(lhs, rhsT, result, rows, cols, resultCols, i, j);
+            float temp[BATCH_SIZE][BATCH_SIZE] __attribute__((xcl_array_partition(complete, 2)));
+            clearTemporary(temp);
+            productBatch(lhs, rhsT, temp, rows, cols, resultCols, i, j);
+            copyTemporary(temp, result, rows, resultCols, i, j);
+        }
+    }
+}
+
+static void clearTemporary(float temp[][BATCH_SIZE]) {
+    for(size_t i = 0; i < BATCH_SIZE; ++i) {
+        for(size_t j = 0; j < BATCH_SIZE; ++j) {
+             temp[i][j] = 0.0f;
         }
     }
 }
@@ -33,7 +53,7 @@ void product(
 static void productBatch(
         __global const float16 *lhs,
         __global const float16 *rhsT,
-        __global float *result,
+        float result[][BATCH_SIZE],
         uint rows,
         uint cols,
         uint resultCols,
@@ -47,8 +67,21 @@ static void productBatch(
             for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
                 value += dot(lhs[(globalI * cols + k) / VECTOR_SIZE], rhsT[(globalJ * cols + k) / VECTOR_SIZE]);
             }
-            result[globalI * resultCols + globalJ] = value;
+            result[i][j] = value;
         }
     }
 }
 
+static void copyTemporary(
+        const float temp[][BATCH_SIZE],
+        __global float *result,
+        uint rows,
+        uint resultCols,
+        size_t batchI,
+        size_t batchJ) {
+    for(size_t i = 0; i < BATCH_SIZE; ++i) {
+        for(size_t j = 0; j < BATCH_SIZE; ++j) {
+            result[(batchI + i) * resultCols + (batchJ + j)] = temp[i][j];
+        }
+    }
+}
