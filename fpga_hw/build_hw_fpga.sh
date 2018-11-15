@@ -21,9 +21,7 @@ xocc -c \
   --platform ${PLATFORM} \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
-  --report_level estimate --report_dir ${REPORT_DIR} \
-  --max_memory_ports ${KERNEL_NAME} \
-  --memory_port_data_width ${KERNEL_NAME}:1
+  --report_level estimate --report_dir ${REPORT_DIR}
 
 xocc -l \
   --nk ${KERNEL_NAME}:1 \
@@ -31,7 +29,6 @@ xocc -l \
   --platform ${PLATFORM} \
   ${OBJECT_FILE} \
   -o ${XCLBIN_FILE} \
-  --profile_kernel data:all:all:all:all \
   --report_level estimate --report_dir ${REPORT_DIR}
 
 emconfigutil \

@@ -3,36 +3,52 @@ enum {
     VECTOR_SIZE = 16
 };
 
+static void productBatch(
+    __global const float16 *lhs,
+    __global const float16 *rhsT,
+    __global float *result,
+    uint rows,
+    uint cols,
+    uint resultCols,
+    size_t batchI,
+    size_t batchJ);
+
 __kernel
-__attribute__((reqd_work_group_size(16, 16, 1)))
+__attribute__((reqd_work_group_size(1, 1, 1)))
 __attribute__((xcl_zero_global_work_offset))
 void product(
         __global const float16 *lhs,
         __global const float16 *rhsT,
         __global float *result,
-        uint cols) {
-    const size_t j = get_global_id(0);
-    const size_t i = get_global_id(1);
-    const size_t resultCols = get_global_size(1);
-    const size_t localJ = get_local_id(0);
-    const size_t localI = get_local_id(1);
-
-    __local float16 localLhs[BATCH_SIZE][BATCH_SIZE] __attribute__((xcl_array_partition(cyclic, 16, 2)));
-    __local float16 localRhsT[BATCH_SIZE][BATCH_SIZE] __attribute__((xcl_array_partition(cyclic, 16, 2)));
-
-    float value = 0.0f;
-    for(size_t k = 0; k < cols; k += VECTOR_SIZE * BATCH_SIZE) {
-
-        barrier(CLK_LOCAL_MEM_FENCE);
-        localLhs[localI][localJ] = lhs[(i * cols + k) / VECTOR_SIZE + localJ];
-        localRhsT[localJ][localI] = rhsT[(j * cols + k) / VECTOR_SIZE + localI];
-        barrier(CLK_LOCAL_MEM_FENCE);
-
-        __attribute__((xcl_pipeline_loop))
-        for(size_t lk = 0; lk < BATCH_SIZE; ++lk) {
-            value += dot(localLhs[localI][lk], localRhsT[localJ][lk]);
+        uint rows,
+        uint cols,
+        uint resultCols) {
+    for(size_t i = 0; i < rows; i += BATCH_SIZE) {
+        for(size_t j = 0; j < resultCols; j += BATCH_SIZE) {
+            productBatch(lhs, rhsT, result, rows, cols, resultCols, i, j);
         }
     }
-    result[i * resultCols + j] = value;
+}
+
+static void productBatch(
+        __global const float16 *lhs,
+        __global const float16 *rhsT,
+        __global float *result,
+        uint rows,
+        uint cols,
+        uint resultCols,
+        size_t batchI,
+        size_t batchJ) {
+    for(size_t i = 0; i < BATCH_SIZE; ++i) {
+        for(size_t j = 0; j < BATCH_SIZE; ++j) {
+            const size_t globalI = batchI + i;
+            const size_t globalJ = batchJ + j;
+            float value = 0.0f;
+            for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
+                value += dot(lhs[(globalI * cols + k) / VECTOR_SIZE], rhsT[(globalJ * cols + k) / VECTOR_SIZE]);
+            }
+            result[globalI * resultCols + globalJ] = value;
+        }
+    }
 }
 
