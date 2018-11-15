@@ -74,8 +74,7 @@ void main() {
         ROWS = 256,
         COLS = 256,
         RESULT_COLS = 256,
-        BATCH_ROWS = 16,
-        BATCH_COLS = 16,
+        BATCH_SIZE = 16,
     }
 
     // initialize operand matrixes.
@@ -132,11 +131,11 @@ void main() {
     scope(exit) cl.releaseKernel(kernel);
 
     // calculate padded matrix size.
-    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_COLS);
+    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_SIZE);
     assert(bufferCols == COLS);
-    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_ROWS);
+    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_SIZE);
     assert(bufferRows == ROWS);
-    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_COLS);
+    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_SIZE);
     assert(bufferResultCols == RESULT_COLS);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
@@ -160,7 +159,7 @@ void main() {
     cl.setKernelArg(kernel, 3, bufferCols);
 
     immutable(size_t)[] globalWorkSizes = [bufferResultCols, bufferRows];
-    immutable(size_t)[] localWorkSizes = [BATCH_COLS, BATCH_ROWS];
+    immutable(size_t)[] localWorkSizes = [BATCH_SIZE, BATCH_SIZE];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     void productGpu() {
