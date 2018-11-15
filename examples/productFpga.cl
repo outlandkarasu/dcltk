@@ -34,7 +34,7 @@ void product(
         uint resultCols) {
     for(size_t i = 0; i < rows; i += BATCH_SIZE) {
         for(size_t j = 0; j < resultCols; j += BATCH_SIZE) {
-            float temp[BATCH_SIZE][BATCH_SIZE] __attribute__((xcl_array_partition(complete, 2)));
+            float temp[BATCH_SIZE][BATCH_SIZE] __attribute__((xcl_array_partition(cyclic, 16, 2)));
             clearTemporary(temp);
             productBatch(lhs, rhsT, temp, rows, cols, resultCols, i, j);
             copyTemporary(temp, result, rows, resultCols, i, j);
@@ -59,15 +59,17 @@ static void productBatch(
         uint resultCols,
         size_t batchI,
         size_t batchJ) {
-    for(size_t i = 0; i < BATCH_SIZE; ++i) {
+    for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
+        float16 privateCols[BATCH_SIZE];
         for(size_t j = 0; j < BATCH_SIZE; ++j) {
+            privateCols[j] = rhsT[((batchJ + j) * cols + k) / VECTOR_SIZE];
+        }
+        for(size_t i = 0; i < BATCH_SIZE; ++i) {
             const size_t globalI = batchI + i;
-            const size_t globalJ = batchJ + j;
-            float value = 0.0f;
-            for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
-                value += dot(lhs[(globalI * cols + k) / VECTOR_SIZE], rhsT[(globalJ * cols + k) / VECTOR_SIZE]);
+            const float16 privateRow = lhs[(globalI * cols + k) / VECTOR_SIZE];
+            for(size_t j = 0; j < BATCH_SIZE; ++j) {
+                result[i][j] += dot(privateRow, privateCols[j]);
             }
-            result[i][j] = value;
         }
     }
 }
