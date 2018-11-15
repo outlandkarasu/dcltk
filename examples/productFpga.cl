@@ -12,17 +12,15 @@ void product(
         __global const float16 *lhs,
         __global const float16 *rhsT,
         __global float *result,
-        uint rows,
-        uint cols,
-        uint resultCols) {
-    for(size_t i = 0; i < rows; ++i) {
-        for(size_t j = 0; j < resultCols; ++j) {
-            float value = 0.0f;
-            for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
-	        value += dot(lhs[(i * cols + k) / VECTOR_SIZE], rhsT[(j * cols + k) / VECTOR_SIZE]);
-            }
-	    result[i * resultCols + j] = value;
-        }
+        uint cols) {
+    const size_t j = get_global_id(0);
+    const size_t i = get_global_id(1);
+    const size_t resultCols = get_global_size(1);
+
+    float value = 0.0f;
+    for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
+        value += dot(lhs[(i * cols + k) / VECTOR_SIZE], rhsT[(j * cols + k) / VECTOR_SIZE]);
     }
+    result[i * resultCols + j] = value;
 }
 

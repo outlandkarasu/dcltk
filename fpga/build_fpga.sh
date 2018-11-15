@@ -22,8 +22,8 @@ xocc -c \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
   --report_level estimate --report_dir ${REPORT_DIR} \
-  --max_memory_ports all \
-  --memory_port_data_width all
+  --max_memory_ports ${KERNEL_NAME} \
+  --memory_port_data_width ${KERNEL_NAME}:1
 
 xocc -l \
   --nk ${KERNEL_NAME}:1 \

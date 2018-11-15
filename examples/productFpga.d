@@ -157,11 +157,9 @@ void main() {
     cl.setKernelArg(kernel, 0, lhsBuffer);
     cl.setKernelArg(kernel, 1, rhsBuffer);
     cl.setKernelArg(kernel, 2, resultBuffer);
-    cl.setKernelArg(kernel, 3, bufferRows);
-    cl.setKernelArg(kernel, 4, bufferCols);
-    cl.setKernelArg(kernel, 5, bufferResultCols);
+    cl.setKernelArg(kernel, 3, bufferCols);
 
-    immutable(size_t)[] globalWorkSizes = [1, 1];
+    immutable(size_t)[] globalWorkSizes = [bufferRows, bufferResultCols];
     immutable(size_t)[] localWorkSizes = [1, 1];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
