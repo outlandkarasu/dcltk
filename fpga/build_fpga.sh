@@ -21,6 +21,7 @@ xocc -c \
   --platform ${PLATFORM} \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
+  --save-temps \
   --report_level estimate --report_dir ${REPORT_DIR} \
   --max_memory_ports ${KERNEL_NAME} \
   --memory_port_data_width ${KERNEL_NAME}:1
@@ -31,6 +32,7 @@ xocc -l \
   --platform ${PLATFORM} \
   ${OBJECT_FILE} \
   -o ${XCLBIN_FILE} \
+  --save-temps \
   --profile_kernel data:all:all:all:all \
   --report_level estimate --report_dir ${REPORT_DIR}
 

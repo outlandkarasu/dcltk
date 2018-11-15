@@ -19,8 +19,8 @@ void product(
     const size_t localJ = get_local_id(0);
     const size_t localI = get_local_id(1);
 
-    __local float16 localLhs[BATCH_ROWS][BATCH_K];
-    __local float16 localRhsT[BATCH_COLS][BATCH_K];
+    __local float16 localLhs[BATCH_ROWS][BATCH_K] __attribute__((xcl_array_partition(cyclic, 16, 2)));
+    __local float16 localRhsT[BATCH_COLS][BATCH_K] __attribute__((xcl_array_partition(cyclic, 16, 2)));
 
     float value = 0.0f;
     for(size_t k = 0; k < cols; k += VECTOR_SIZE * BATCH_K) {
@@ -30,7 +30,6 @@ void product(
         localRhsT[localJ][localI] = rhsT[(j * cols + k) / VECTOR_SIZE + localI];
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        __attribute__((xcl_pipeline_loop))
         for(size_t lk = 0; lk < BATCH_K; ++lk) {
             value += dot(localLhs[localI][lk], localRhsT[localJ][lk]);
         }
