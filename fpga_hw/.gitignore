@@ -1,0 +1,11 @@
+_x/
+to_aws/
+awsver.txt
+*.log
+*.bin
+*.bit
+*.awsxclbin
+*.rtd
+*.txt
+*.xml
+*.tar

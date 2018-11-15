@@ -4,8 +4,8 @@ set -e
 
 cd `dirname $0`
 
-TARGET=sw_emu
-#TARGET=hw
+#TARGET=sw_emu
+TARGET=hw
 KERNEL_NAME=product
 PLATFORM=${AWS_PLATFORM}
 SOURCE=../examples/productFpga.cl
@@ -37,5 +37,5 @@ emconfigutil \
   --nd 1 \
   --od ../
 
-#./register_fpga.sh
+./register_fpga.sh
 

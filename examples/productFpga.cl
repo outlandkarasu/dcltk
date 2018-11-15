@@ -2,21 +2,12 @@ enum {
     BATCH_ROWS = 16,
     BATCH_COLS = 16,
     BATCH_K = 16,
+    VECTOR_SIZE = 16
 };
-
-static void productBatch(
-        __global const float16 *lhs,
-        __global const float16 *rhsT,
-        __global float *result,
-        uint rows,
-        uint cols,
-        uint resultCols,
-        size_t offsetI,
-        size_t offsetJ,
-        size_t offsetK);
 
 __kernel
 __attribute__((reqd_work_group_size(1, 1, 1)))
+__attribute__((xcl_zero_global_work_offset))
 void product(
         __global const float16 *lhs,
         __global const float16 *rhsT,
@@ -24,34 +15,13 @@ void product(
         uint rows,
         uint cols,
         uint resultCols) {
-
-    for(size_t k = 0; k < cols; k += BATCH_K) {
-        for(size_t i = 0; i < rows; i += BATCH_ROWS) {
-            for(size_t j = 0; j < resultCols; j += BATCH_COLS) {
-                productBatch(lhs, rhsT, result, rows, cols, resultCols, i, j, k);
-            }
-        }
-    }
-}
-
-void productBatch(
-        __global const float16 *lhs,
-        __global const float16 *rhsT,
-        __global float *result,
-        uint rows,
-        uint cols,
-        uint resultCols,
-        size_t offsetI,
-        size_t offsetJ,
-        size_t k) {
-    __attribute__((xcl_pipeline_loop))
-    for(size_t i = 0; i < BATCH_ROWS; ++i) {
-        for(size_t j = 0; j < BATCH_COLS; ++j) {
-            const size_t globalI = i + offsetI;
-            const size_t globalJ = j + offsetJ;
+    for(size_t i = 0; i < rows; ++i) {
+        for(size_t j = 0; j < resultCols; ++j) {
             float value = 0.0f;
-	    value += dot(lhs[(globalI * cols + k) / 16], rhsT[(globalJ * cols + k) / 16]);
-	    result[globalI * resultCols + globalJ] += value;
+            for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
+	        value += dot(lhs[(i * cols + k) / VECTOR_SIZE], rhsT[(j * cols + k) / VECTOR_SIZE]);
+            }
+	    result[i * resultCols + j] = value;
         }
     }
 }
