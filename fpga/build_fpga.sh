@@ -4,8 +4,8 @@ set -e
 
 cd `dirname $0`
 
-TARGET=sw_emu
-#TARGET=hw
+#TARGET=sw_emu
+TARGET=hw_emu
 KERNEL_NAME=product
 PLATFORM=${AWS_PLATFORM}
 SOURCE=../examples/productFpga.cl
@@ -21,10 +21,7 @@ xocc -c \
   --platform ${PLATFORM} \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
-  --save-temps \
-  --report_level estimate --report_dir ${REPORT_DIR} \
-  --max_memory_ports ${KERNEL_NAME} \
-  --memory_port_data_width ${KERNEL_NAME}:1
+  --save-temps
 
 xocc -l \
   --nk ${KERNEL_NAME}:1 \

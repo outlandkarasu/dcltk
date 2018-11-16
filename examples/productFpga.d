@@ -71,10 +71,10 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 256,
-        COLS = 256,
-        RESULT_COLS = 256,
-        BATCH_SIZE = 16,
+        ROWS = 4,
+        COLS = 4,
+        RESULT_COLS = 4,
+        BATCH_SIZE = 2,
     }
 
     // initialize operand matrixes.
@@ -160,7 +160,7 @@ void main() {
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
 
-    immutable(size_t)[] globalWorkSizes = [1, 1];
+    immutable(size_t)[] globalWorkSizes = [RESULT_COLS / BATCH_SIZE, ROWS / BATCH_SIZE];
     immutable(size_t)[] localWorkSizes = [1, 1];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
@@ -186,8 +186,8 @@ void main() {
         writefln("cpu: %d msecs, gpu: %d msecs (%.1f GFLOPS, faster %.1f times)",
             cpuMsecs, gpuMsecs, gpuFlops / (10.0^^9), cast(real) cpuMsecs / cast(real) gpuMsecs);
 
-        // writefln("%s", cpuResult);
-        // writefln("%s", gpuResult);
+        writefln("%s", cpuResult);
+        writefln("%s", gpuResult);
 
         // check result values.
         foreach(i, e; cpuResult) {
