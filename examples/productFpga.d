@@ -75,8 +75,6 @@ void main() {
         COLS = 4,
         RESULT_COLS = 4,
         GROUP_SIZE = 2,
-        VECTOR_SIZE = 2,
-        BATCH_SIZE = GROUP_SIZE * VECTOR_SIZE,
     }
 
     // initialize operand matrixes.
@@ -133,7 +131,7 @@ void main() {
     scope(exit) cl.releaseKernel(kernel);
 
     // calculate padded matrix size.
-    immutable bufferCols = cast(uint) roundUp(COLS, BATCH_SIZE);
+    immutable bufferCols = cast(uint) roundUp(COLS, GROUP_SIZE);
     assert(bufferCols == COLS);
     immutable bufferRows = cast(uint) roundUp(ROWS, GROUP_SIZE);
     assert(bufferRows == ROWS);

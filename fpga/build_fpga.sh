@@ -4,8 +4,8 @@ set -e
 
 cd `dirname $0`
 
-TARGET=sw_emu
-#TARGET=hw_emu
+#TARGET=sw_emu
+TARGET=hw_emu
 KERNEL_NAME=product
 PLATFORM=${AWS_PLATFORM}
 SOURCE=../examples/productFpga.cl
