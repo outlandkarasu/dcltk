@@ -162,7 +162,7 @@ void main() {
     cl.setKernelArg(kernel, 5, bufferResultCols);
 
     immutable(size_t)[] globalWorkSizes = [RESULT_COLS / BATCH_SIZE, ROWS / BATCH_SIZE];
-    immutable(size_t)[] localWorkSizes = [1, 1];
+    immutable(size_t)[] localWorkSizes = [GROUP_SIZE, GROUP_SIZE];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
     void productGpu() {

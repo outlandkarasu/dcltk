@@ -1,7 +1,6 @@
-enum {
-    BATCH_SIZE = 2,
-    VECTOR_SIZE = 2,
-};
+#define GROUP_SIZE 2
+#define BATCH_SIZE 2
+#define VECTOR_SIZE 2
 
 typedef float2 VectorType;
 #define LOAD_VECTOR vload2
@@ -25,7 +24,7 @@ static void writeValues(
 );
 
 __kernel
-__attribute__((reqd_work_group_size(1, 1, 1)))
+__attribute__((reqd_work_group_size(GROUP_SIZE, GROUP_SIZE, 1)))
 __attribute__((xcl_zero_global_work_offset))
 void product(
         __global const float * restrict lhs,
