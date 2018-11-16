@@ -6,6 +6,7 @@ enum {
 __kernel
 __attribute__((reqd_work_group_size(1, 1, 1)))
 __attribute__((xcl_zero_global_work_offset))
+__attribute__((vec_type_hint(float2)))
 void product(
         __global const float *lhs,
         __global const float *rhsT,
