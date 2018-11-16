@@ -6,26 +6,39 @@ enum {
 __kernel
 __attribute__((reqd_work_group_size(2, 2, 1)))
 __attribute__((xcl_zero_global_work_offset))
-__attribute__((vec_type_hint(float2)))
 void product(
-        __global const float *lhs,
-        __global const float *rhsT,
-        __global float *result,
+        __global const float * restrict lhs,
+        __global const float * restrict rhsT,
+        __global float * restrict result,
         uint rows,
         uint cols,
         uint resultCols) {
     const size_t batchJ = get_global_id(0) * BATCH_SIZE;
     const size_t batchI = get_global_id(1) * BATCH_SIZE;
 
+    float values[BATCH_SIZE][BATCH_SIZE];
     for(size_t i = 0; i < BATCH_SIZE; ++i) {
-        const size_t globalI = i + batchI;
         for(size_t j = 0; j < BATCH_SIZE; ++j) {
-            const size_t globalJ = j + batchJ;
-            float value = 0.0f;
-            for(size_t k = 0; k < cols; ++k) {
-                value += lhs[globalI * cols + k] * rhsT[globalJ * cols + k];
+            values[i][j] = 0.0f;
+        }
+    }
+
+    for(size_t k = 0; k < cols; ++k) {
+        float privateCols[BATCH_SIZE];
+        for(size_t j = 0; j < BATCH_SIZE; ++j) {
+            privateCols[j] = rhsT[(j + batchJ) * cols + k];
+        }
+        for(size_t i = 0; i < BATCH_SIZE; ++i) {
+            const float privateRow = lhs[(i + batchI) * cols + k];
+            for(size_t j = 0; j < BATCH_SIZE; ++j) {
+                values[i][j] += privateRow * privateCols[j];
             }
-            result[globalI * resultCols + globalJ] = value;
+        }
+    }
+
+    for(size_t i = 0; i < BATCH_SIZE; ++i) {
+        for(size_t j = 0; j < BATCH_SIZE; ++j) {
+            result[(i + batchI) * resultCols + (j + batchJ)] = values[i][j];
         }
     }
 }
