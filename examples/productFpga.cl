@@ -5,23 +5,24 @@
 typedef float2 VectorType;
 #define LOAD_VECTOR vload2
 
-static void clearValues(float values[BATCH_SIZE][BATCH_SIZE]);
-static void calculate(
+static void loadToLocal(
     __global const float * restrict lhs,
     __global const float * restrict rhsT,
-    float values[BATCH_SIZE][BATCH_SIZE],
+    __local VectorType localRows[GROUP_SIZE][GROUP_SIZE],
+    __local VectorType localCols[GROUP_SIZE][GROUP_SIZE],
     size_t cols,
-    size_t batchI,
-    size_t batchJ,
-    size_t k
-);
-static void writeValues(
-    __global float * restrict result,
-    float values[BATCH_SIZE][BATCH_SIZE],
-    size_t resultCols,
-    size_t batchI,
-    size_t batchJ
-);
+    size_t groupI,
+    size_t groupJ,
+    size_t k,
+    size_t localI,
+    size_t localJ);
+
+static void calculate(
+    __local const VectorType localRows[GROUP_SIZE][GROUP_SIZE],
+    __local const VectorType localCols[GROUP_SIZE][GROUP_SIZE],
+    size_t localI,
+    size_t localJ,
+    float * restrict value);
 
 __kernel
 __attribute__((reqd_work_group_size(GROUP_SIZE, GROUP_SIZE, 1)))
@@ -33,57 +34,50 @@ void product(
         uint rows,
         uint cols,
         uint resultCols) {
-    const size_t batchJ = get_global_id(0) * BATCH_SIZE;
-    const size_t batchI = get_global_id(1) * BATCH_SIZE;
-    float values[BATCH_SIZE][BATCH_SIZE];
+    __local VectorType localRows[GROUP_SIZE][GROUP_SIZE];
+    __local VectorType localCols[GROUP_SIZE][GROUP_SIZE];
+    const size_t groupJ = get_group_id(0) * GROUP_SIZE;
+    const size_t groupI = get_group_id(1) * GROUP_SIZE;
+    const size_t localJ = get_local_id(0);
+    const size_t localI = get_local_id(1);
+    const size_t j = get_global_id(0);
+    const size_t i = get_global_id(1);
+    float value = 0.0f;
 
-    clearValues(values);
+    for(size_t k = 0; k < cols; k += (VECTOR_SIZE * GROUP_SIZE)) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        loadToLocal(lhs, rhsT, localRows, localCols, cols, groupI, groupJ, k, localI, localJ);
+        barrier(CLK_LOCAL_MEM_FENCE);
 
-    for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
-        calculate(lhs, rhsT, values, cols, batchI, batchJ, k);
+        calculate(localRows, localCols, localI, localJ, &value);
     }
 
-    writeValues(result, values, resultCols, batchI, batchJ);
+    result[i * resultCols + j] = value;
 }
 
-static void clearValues(float values[BATCH_SIZE][BATCH_SIZE]) {
-    for(size_t i = 0; i < BATCH_SIZE; ++i) {
-        for(size_t j = 0; j < BATCH_SIZE; ++j) {
-            values[i][j] = 0.0f;
-        }
-    }
+static void loadToLocal(
+        __global const float * restrict lhs,
+        __global const float * restrict rhsT,
+        __local VectorType localRows[GROUP_SIZE][GROUP_SIZE],
+        __local VectorType localCols[GROUP_SIZE][GROUP_SIZE],
+        size_t cols,
+        size_t groupI,
+        size_t groupJ,
+        size_t k,
+        size_t localI,
+        size_t localJ) {
+    localRows[localI][localJ] = LOAD_VECTOR(((groupI + localI) * cols + k) / VECTOR_SIZE + localJ, lhs);
+    localCols[localI][localJ] = LOAD_VECTOR(((groupJ + localI) * cols + k) / VECTOR_SIZE + localJ, rhsT);
 }
 
 static void calculate(
-        __global const float * restrict lhs,
-        __global const float * restrict rhsT,
-        float values[BATCH_SIZE][BATCH_SIZE],
-        size_t cols,
-        size_t batchI,
-        size_t batchJ,
-        size_t k) {
-    VectorType privateCols[BATCH_SIZE];
-    for(size_t j = 0; j < BATCH_SIZE; ++j) {
-        privateCols[j] = LOAD_VECTOR(((j + batchJ) * cols + k) / VECTOR_SIZE, rhsT);
-    }
-    for(size_t i = 0; i < BATCH_SIZE; ++i) {
-        const VectorType privateRow = LOAD_VECTOR(((i + batchI) * cols + k) / VECTOR_SIZE, lhs);
-        for(size_t j = 0; j < BATCH_SIZE; ++j) {
-            values[i][j] += dot(privateRow, privateCols[j]);
-        }
-    }
-}
-
-static void writeValues(
-        __global float * restrict result,
-        float values[BATCH_SIZE][BATCH_SIZE],
-        size_t resultCols,
-        size_t batchI,
-        size_t batchJ) {
-    for(size_t i = 0; i < BATCH_SIZE; ++i) {
-        for(size_t j = 0; j < BATCH_SIZE; ++j) {
-            result[(i + batchI) * resultCols + (j + batchJ)] = values[i][j];
-        }
+        __local const VectorType localRows[GROUP_SIZE][GROUP_SIZE],
+        __local const VectorType localCols[GROUP_SIZE][GROUP_SIZE],
+        size_t localI,
+        size_t localJ,
+        float * restrict value) {
+    for(size_t localK = 0; localK < GROUP_SIZE; ++localK) {
+        *value += dot(localRows[localI][localK], localCols[localJ][localK]);
     }
 }
 

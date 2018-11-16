@@ -74,8 +74,9 @@ void main() {
         ROWS = 4,
         COLS = 4,
         RESULT_COLS = 4,
-        BATCH_SIZE = 2,
         GROUP_SIZE = 2,
+        VECTOR_SIZE = 2,
+        BATCH_SIZE = GROUP_SIZE * VECTOR_SIZE,
     }
 
     // initialize operand matrixes.
@@ -134,9 +135,9 @@ void main() {
     // calculate padded matrix size.
     immutable bufferCols = cast(uint) roundUp(COLS, BATCH_SIZE);
     assert(bufferCols == COLS);
-    immutable bufferRows = cast(uint) roundUp(ROWS, BATCH_SIZE);
+    immutable bufferRows = cast(uint) roundUp(ROWS, GROUP_SIZE);
     assert(bufferRows == ROWS);
-    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, BATCH_SIZE);
+    immutable bufferResultCols = cast(uint) roundUp(RESULT_COLS, GROUP_SIZE);
     assert(bufferResultCols == RESULT_COLS);
     writefln("bc: %s, br: %s, brc: %s", bufferCols, bufferRows, bufferResultCols);
 
@@ -161,7 +162,7 @@ void main() {
     cl.setKernelArg(kernel, 4, bufferCols);
     cl.setKernelArg(kernel, 5, bufferResultCols);
 
-    immutable(size_t)[] globalWorkSizes = [RESULT_COLS / BATCH_SIZE, ROWS / BATCH_SIZE];
+    immutable(size_t)[] globalWorkSizes = [RESULT_COLS, ROWS];
     immutable(size_t)[] localWorkSizes = [GROUP_SIZE, GROUP_SIZE];
     writefln("workSizes: %s, %s", localWorkSizes, globalWorkSizes);
 
