@@ -4,7 +4,7 @@ enum {
 };
 
 __kernel
-__attribute__((reqd_work_group_size(1, 1, 1)))
+__attribute__((reqd_work_group_size(2, 2, 1)))
 __attribute__((xcl_zero_global_work_offset))
 __attribute__((vec_type_hint(float2)))
 void product(
@@ -16,6 +16,7 @@ void product(
         uint resultCols) {
     const size_t batchJ = get_global_id(0) * BATCH_SIZE;
     const size_t batchI = get_global_id(1) * BATCH_SIZE;
+
     for(size_t i = 0; i < BATCH_SIZE; ++i) {
         const size_t globalI = i + batchI;
         for(size_t j = 0; j < BATCH_SIZE; ++j) {
