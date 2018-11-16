@@ -71,10 +71,10 @@ unittest {
 void main() {
     // matrix size.
     enum {
-        ROWS = 4,
-        COLS = 4,
-        RESULT_COLS = 4,
-        GROUP_SIZE = 2,
+        ROWS = 256,
+        COLS = 256,
+        RESULT_COLS = 256,
+        GROUP_SIZE = 32,
     }
 
     // initialize operand matrixes.
@@ -186,8 +186,8 @@ void main() {
         writefln("cpu: %d msecs, gpu: %d msecs (%.1f GFLOPS, faster %.1f times)",
             cpuMsecs, gpuMsecs, gpuFlops / (10.0^^9), cast(real) cpuMsecs / cast(real) gpuMsecs);
 
-        writefln("%s", cpuResult);
-        writefln("%s", gpuResult);
+        // writefln("%s", cpuResult);
+        // writefln("%s", gpuResult);
 
         // check result values.
         foreach(i, e; cpuResult) {

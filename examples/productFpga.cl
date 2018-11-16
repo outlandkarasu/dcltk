@@ -1,4 +1,4 @@
-#define GROUP_SIZE 2
+#define GROUP_SIZE 32
 
 static void loadToLocal(
     __global const float * restrict lhs,
@@ -23,8 +23,8 @@ void product(
         uint rows,
         uint cols,
         uint resultCols) {
-    __local float localRows[GROUP_SIZE][GROUP_SIZE];
-    __local float localCols[GROUP_SIZE][GROUP_SIZE];
+    __local float localRows[GROUP_SIZE][GROUP_SIZE] __attribute__((xcl_array_partition(cyclic, GROUP_SIZE, 2)));
+    __local float localCols[GROUP_SIZE][GROUP_SIZE] __attribute__((xcl_array_partition(cyclic, GROUP_SIZE, 2)));
     const size_t j = get_global_id(0);
     const size_t i = get_global_id(1);
     float value = 0.0f;
