@@ -3,6 +3,9 @@ enum {
     VECTOR_SIZE = 2,
 };
 
+typedef float2 VectorType;
+#define LOAD_VECTOR vload2
+
 __kernel
 __attribute__((reqd_work_group_size(2, 2, 1)))
 __attribute__((xcl_zero_global_work_offset))
@@ -23,15 +26,15 @@ void product(
         }
     }
 
-    for(size_t k = 0; k < cols; ++k) {
-        float privateCols[BATCH_SIZE];
+    for(size_t k = 0; k < cols; k += VECTOR_SIZE) {
+        VectorType privateCols[BATCH_SIZE];
         for(size_t j = 0; j < BATCH_SIZE; ++j) {
-            privateCols[j] = rhsT[(j + batchJ) * cols + k];
+            privateCols[j] = LOAD_VECTOR(((j + batchJ) * cols + k) / VECTOR_SIZE, rhsT);
         }
         for(size_t i = 0; i < BATCH_SIZE; ++i) {
-            const float privateRow = lhs[(i + batchI) * cols + k];
+            const VectorType privateRow = LOAD_VECTOR(((i + batchI) * cols + k) / VECTOR_SIZE, lhs);
             for(size_t j = 0; j < BATCH_SIZE; ++j) {
-                values[i][j] += privateRow * privateCols[j];
+                values[i][j] += dot(privateRow, privateCols[j]);
             }
         }
     }
