@@ -4,9 +4,10 @@ set -e
 
 cd `dirname $0`
 
-TARGET=sw_emu
-#TARGET=hw_emu
+#TARGET=sw_emu
+TARGET=hw_emu
 KERNEL_NAME=product
+KERNEL_COUNT=4
 PLATFORM=${AWS_PLATFORM}
 SOURCE=../examples/productFpga.cl
 OBJECT_FILE=../examples/productFpga.xo
@@ -24,7 +25,7 @@ xocc -c \
   --save-temps
 
 xocc -l \
-  --nk ${KERNEL_NAME}:1 \
+  --nk ${KERNEL_NAME}:${KERNEL_COUNT} \
   --target ${TARGET} \
   --platform ${PLATFORM} \
   ${OBJECT_FILE} \
