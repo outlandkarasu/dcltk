@@ -7,6 +7,7 @@ cd `dirname $0`
 #TARGET=sw_emu
 TARGET=hw
 KERNEL_NAME=product
+KERNEL_COUNT=16
 PLATFORM=${AWS_PLATFORM}
 SOURCE=../examples/productFpga.cl
 OBJECT_FILE=../examples/productFpga.xo
@@ -21,14 +22,16 @@ xocc -c \
   --platform ${PLATFORM} \
   ${SOURCE} \
   -o ${OBJECT_FILE} \
-  --report_level estimate --report_dir ${REPORT_DIR}
+  --save-temps
 
 xocc -l \
-  --nk ${KERNEL_NAME}:1 \
+  --nk ${KERNEL_NAME}:${KERNEL_COUNT} \
   --target ${TARGET} \
   --platform ${PLATFORM} \
   ${OBJECT_FILE} \
   -o ${XCLBIN_FILE} \
+  --save-temps \
+  --profile_kernel data:all:all:all:all \
   --report_level estimate --report_dir ${REPORT_DIR}
 
 emconfigutil \
