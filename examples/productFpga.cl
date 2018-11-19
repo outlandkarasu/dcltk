@@ -1,4 +1,4 @@
-#define GROUP_SIZE 32
+#define GROUP_SIZE 64
 
 static void loadToLocal(
     __global const float * restrict lhs,

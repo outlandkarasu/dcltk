@@ -9,7 +9,58 @@ import std.string : format;
 import std.traits : isIntegral;
 
 import cl = dcltk;
-import derelict.opencl.cl : cl_event, CL_DEVICE_TYPE_ACCELERATOR;
+import derelict.opencl.cl :
+    cl_context,
+    cl_event,
+    cl_int,
+    cl_mem,
+    cl_mem_flags,
+    CL_DEVICE_TYPE_ACCELERATOR,
+    clCreateBuffer,
+    CL_MEM_READ_WRITE,
+    CL_MEM_READ_ONLY,
+    CL_MEM_WRITE_ONLY,
+    CL_MEM_HOST_WRITE_ONLY,
+    CL_MEM_HOST_READ_ONLY,
+    CL_MEM_COPY_HOST_PTR;
+
+enum DdrBank {
+    bank0 = 0b0001,
+    bank1 = 0b0010,
+    bank2 = 0b0100,
+    bank3 = 0b1000,
+}
+
+enum CL_MEM_EXT_PTR_XILINX = cast(cl_mem_flags)(1 << 31);
+
+struct cl_mem_ext_ptr_t {
+  uint flags;
+  const(void)* obj;
+  void* param;
+}
+
+private cl_mem createDeviceBuffer(cl_context context, size_t size, const(void)* data, cl_mem_flags flags, DdrBank bank) {
+    cl_int errorCode;
+    cl_mem_ext_ptr_t mem = {bank, data};
+    auto buffer = clCreateBuffer(
+            context,
+            flags | CL_MEM_EXT_PTR_XILINX,
+            size,
+            &mem,
+            &errorCode);
+    cl.enforceCl(errorCode);
+    return buffer;
+}
+
+private cl_mem createDeviceReadBuffer(cl_context context, const(void)[] data, DdrBank bank) {
+    return createDeviceBuffer(
+        context, data.length, data.ptr, CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, bank);
+}
+
+private cl_mem createDeviceWriteBuffer(cl_context context, size_t size, DdrBank bank) {
+    return createDeviceBuffer(
+        context, size, null, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, bank);
+}
 
 /// round up for unit.
 private T roundUp(T)(T value, T unit) @safe pure nothrow @nogc if(isIntegral!T) {
@@ -74,7 +125,7 @@ void main() {
         ROWS = 64,
         COLS = 64,
         RESULT_COLS = 64,
-        GROUP_SIZE = 32,
+        GROUP_SIZE = 64,
     }
 
     // initialize operand matrixes.
@@ -144,12 +195,12 @@ void main() {
     immutable resultSize = bufferResultCols * bufferRows;
 
     // create buffers.
-    auto lhsBuffer = cl.createHostWriteOnlyBuffer(context, lhs);
+    auto lhsBuffer = createDeviceReadBuffer(context, lhs, DdrBank.bank0);
     scope(exit) cl.releaseBuffer(lhsBuffer);
     auto rhsT = transpose(rhs, bufferCols, bufferResultCols);
-    auto rhsBuffer = cl.createHostWriteOnlyBuffer(context, rhsT);
+    auto rhsBuffer = createDeviceReadBuffer(context, rhsT, DdrBank.bank1);
     scope(exit) cl.releaseBuffer(rhsBuffer);
-    auto resultBuffer = cl.createHostReadOnlyBuffer(context, resultSize * float.sizeof);
+    auto resultBuffer = createDeviceWriteBuffer(context, resultSize * float.sizeof, DdrBank.bank2);
     scope(exit) cl.releaseBuffer(resultBuffer);
 
     // set kernel arguments.
