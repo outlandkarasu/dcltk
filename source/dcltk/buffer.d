@@ -14,10 +14,28 @@ import dcltk.error : enforceCl;
  *  Returns:
  *      buffer object.
  */
-cl_mem createBuffer(cl_context context, cl_mem_flags flags, void[] data) {
+cl_mem createBuffer(cl_context context, cl_mem_flags flags, scope const(void)[] data) {
     cl_int errorCode;
     auto buffer = clCreateBuffer(
-            context, flags, data.length, data.ptr, &errorCode);
+            context, flags, data.length, cast(void*) data.ptr, &errorCode);
+    enforceCl(errorCode);
+    return buffer;
+}
+
+/**
+ *  create buffer object without initial data.
+ *
+ *  Params:
+ *      context = context.
+ *      flags = memory flags.
+ *      size = buffer size.
+ *  Returns:
+ *      buffer object.
+ */
+cl_mem createBuffer(cl_context context, cl_mem_flags flags, size_t size) {
+    cl_int errorCode;
+    auto buffer = clCreateBuffer(
+            context, flags, size, null, &errorCode);
     enforceCl(errorCode);
     return buffer;
 }
@@ -31,11 +49,9 @@ cl_mem createBuffer(cl_context context, cl_mem_flags flags, void[] data) {
  *  Returns:
  *      buffer object.
  */
-cl_mem createBuffer(cl_context context, const(void)[] data) {
+cl_mem createBuffer(cl_context context, scope const(void)[] data) {
     return createBuffer(
-            context,
-            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-            cast(void[]) data);
+            context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, data);
 }
 
 /**
@@ -47,15 +63,8 @@ cl_mem createBuffer(cl_context context, const(void)[] data) {
  *      host read only buffer object.
  */
 cl_mem createHostReadOnlyBuffer(cl_context context, size_t size) {
-    cl_int errorCode;
-    auto buffer = clCreateBuffer(
-            context,
-            CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY,
-            size,
-            null,
-            &errorCode);
-    enforceCl(errorCode);
-    return buffer;
+    return createBuffer(
+            context, CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, size);
 }
 
 /**
@@ -67,11 +76,11 @@ cl_mem createHostReadOnlyBuffer(cl_context context, size_t size) {
  *  Returns:
  *      host write only and device read only buffer object.
  */
-cl_mem createHostWriteOnlyBuffer(cl_context context, const(void)[] data) {
+cl_mem createHostWriteOnlyBuffer(cl_context context, scope const(void)[] data) {
     return createBuffer(
             context,
             CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_COPY_HOST_PTR,
-            cast(void[]) data);
+            data);
 }
 
 /**
@@ -84,15 +93,10 @@ cl_mem createHostWriteOnlyBuffer(cl_context context, const(void)[] data) {
  *      host write only and device read only buffer object.
  */
 cl_mem createHostWriteOnlyBuffer(cl_context context, size_t size) {
-    cl_int errorCode;
-    auto buffer = clCreateBuffer(
+    return createBuffer(
             context,
             CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY,
-            size,
-            null,
-            &errorCode);
-    enforceCl(errorCode);
-    return buffer;
+            size);
 }
 
 /// release buffer object.
@@ -141,6 +145,12 @@ struct Region {
     size_t d = 1;
 }
 
+/// Pitch struct.
+struct Pitch {
+    size_t row;
+    size_t slice;
+}
+
 private immutable(size_t)[] ZERO_ORIGIN = [0, 0, 0];
 
 /**
@@ -160,7 +170,7 @@ private void enqueueReadBuffer(T)(
         cl_mem buffer,
         auto ref const(Position) bufferPos,
         auto ref const(Region) bufferRegion,
-        size_t bufferRowSize,
+        auto ref const(Pitch) bufferPitch,
         T[] dest,
         cl_event* event)
 in {
@@ -173,7 +183,7 @@ in {
         [bufferPos.x * T.sizeof, bufferPos.y, bufferPos.z].ptr,
         ZERO_ORIGIN.ptr,
         [bufferRegion.w * T.sizeof, bufferRegion.h, bufferRegion.d].ptr,
-        bufferRowSize * T.sizeof,
+        bufferPitch.row * T.sizeof,
         0,
         0,
         0,
@@ -474,5 +484,39 @@ void enqueueCopyBuffer(
         size_t destOffset,
         size_t size) {
     enqueueCopyBuffer(queue, source, dest, sourceOffset, destOffset, size, null);
+}
+
+/**
+ *  enqueue copy buffer task.
+ *
+ *  Params:
+ *      queue = command queue.
+ *      source = source buffer.
+ *      dest = dest buffer.
+ *      sourceOffset = source buffer offset.
+ *      destOffset = dest buffer offset.
+ *      size = copy size.
+ *      event = wait event.
+ */
+void enqueueCopyBuffer()(
+        cl_command_queue queue,
+        cl_mem source,
+        cl_mem dest,
+        auto ref const(Position) sourcePos,
+        auto ref const(Position) destPos,
+        auto ref const(Region) copyRegion,
+        size_t sourceRowSize,
+        size_t destRowSize,
+        cl_event *event)
+in {
+    assert(copyRegion.w * copyRegion.h * copyRegion.d == dest.length);
+} body {
+    enforceCl(clEnqueueCopyBuffer(
+        queue,
+        source,
+        dest,
+        0,
+        null,
+        event));
 }
 
