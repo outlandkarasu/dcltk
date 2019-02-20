@@ -12,6 +12,7 @@
 # Compiled Static libraries
 *.a
 *.lib
+dcltk-test-library
 
 # Executables
 *.exe
