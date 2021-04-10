@@ -33,3 +33,22 @@ cl_platform_id loadOpenCl() {
     return highestVersion.id;
 }
 
+/**
+ *  initialize OpenCL libraries.
+ */
+void initializeOpenCL() {
+    DerelictCL.load();
+}
+
+/**
+ *  reload OpenCL libraries.
+ *
+ *  Params:
+ *      platformId = target platform ID.
+ *      clVersion = target version.
+ */
+void reloadOpenCL(cl_platform_id platformId, CLVersion clVersion) {
+    DerelictCL.reload(clVersion);
+    DerelictCL.loadEXT(platformId);
+}
+
