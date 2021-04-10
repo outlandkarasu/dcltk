@@ -45,11 +45,10 @@ void initializeOpenCL() {
  *
  *  Params:
  *      platformId = target platform ID.
- *      version = target version.
+ *      clVersion = target version.
  */
-void reloadOpenCL(cl_platform_id platformId, CLVersion version)
-{
-    DerelictCL.reload(version);
+void reloadOpenCL(cl_platform_id platformId, CLVersion clVersion) {
+    DerelictCL.reload(clVersion);
     DerelictCL.loadEXT(platformId);
 }
 
