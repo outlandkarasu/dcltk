@@ -5,6 +5,7 @@ import derelict.opencl.cl;
 import dcltk.error : enforceCl;
 
 import std.exception : assumeUnique;
+import std.string : fromStringz;
 
 /**
  *  get devices.
@@ -105,12 +106,14 @@ immutable(size_t)[] getDeviceMaxWorkItemSizes(cl_device_id deviceId) {
 
 /// get device name.
 string getDeviceName(cl_device_id deviceId) {
-    return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_NAME));
+    const name = getDeviceInfo!(char[])(deviceId, CL_DEVICE_NAME);
+    return assumeUnique(fromStringz(name.ptr));
 }
 
 /// get device version.
 string getDeviceVersion(cl_device_id deviceId) {
-    return assumeUnique(getDeviceInfo!(char[])(deviceId, CL_DEVICE_OPENCL_C_VERSION));
+    const deviceVersion = getDeviceInfo!(char[])(deviceId, CL_DEVICE_OPENCL_C_VERSION);
+    return assumeUnique(fromStringz(deviceVersion.ptr));
 }
 
 /// get device type.

@@ -4,6 +4,7 @@ import std.algorithm : splitter;
 import std.array : appender;
 import std.exception : assumeUnique;
 import std.range : array;
+import std.string : fromStringz;
 
 import derelict.opencl.cl;
 
@@ -39,7 +40,7 @@ string getPlatformInfo(cl_platform_id platformId, cl_platform_info name) {
 
     auto result = new char[size];
     enforceCl(clGetPlatformInfo(platformId, name, size, result.ptr, &size));
-    return assumeUnique(result[0 .. size]);
+    return assumeUnique(fromStringz(result.ptr));
 }
 
 /// get platform profile
