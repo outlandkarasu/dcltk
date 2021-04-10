@@ -99,6 +99,16 @@ cl_uint getDeviceMaxWorkItemDimensions(cl_device_id deviceId) {
     return getDeviceInfo!(cl_uint)(deviceId, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS);
 }
 
+/// get device preferred vector width.
+cl_uint getDevicePreferredVectorWidthInt(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_uint)(deviceId, CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT);
+}
+
+/// get device preferred vector width.
+cl_uint getDevicePreferredVectorWidthFloat(cl_device_id deviceId) {
+    return getDeviceInfo!(cl_uint)(deviceId, CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT);
+}
+
 /// get device max work item sizes.
 immutable(size_t)[] getDeviceMaxWorkItemSizes(cl_device_id deviceId) {
     return assumeUnique(getDeviceInfo!(size_t[])(deviceId, CL_DEVICE_MAX_WORK_ITEM_SIZES));
