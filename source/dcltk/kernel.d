@@ -6,6 +6,7 @@ import dcltk.error : enforceCl;
 
 import std.string : toStringz;
 import std.exception : assumeUnique;
+import std.traits : isDynamicArray;
 
 /**
  *  create kernel.
@@ -36,7 +37,7 @@ void releaseKernel(cl_kernel kernel) {
  *      index = argument index. (0 to n - 1)
  *      value = value reference.
  */
-void setKernelArg(T)(cl_kernel kernel, cl_uint index, T value) {
+void setKernelArg(T)(cl_kernel kernel, cl_uint index, T value) if (!isDynamicArray!T) {
     enforceCl(clSetKernelArg(kernel, index, T.sizeof, &value));
 }
 
