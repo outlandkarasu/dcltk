@@ -49,7 +49,7 @@ void setKernelArg(T)(cl_kernel kernel, cl_uint index, T value) if (!isDynamicArr
  *      index = argument index. (0 to n - 1)
  *      value = value array.
  */
-void setKernelArg(T : const(T)[])(cl_kernel kernel, cl_uint index, const(T)[] value) {
+void setKernelArg(T)(cl_kernel kernel, cl_uint index, const(T)[] value) {
     enforceCl(clSetKernelArg(kernel, index, T.sizeof * value.length, value.ptr));
 }
 
